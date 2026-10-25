@@ -1,0 +1,8 @@
+bench
+go
+local
+.*
+!.gitignore
+debian.cnf
+log/slow*.log
+log/nginx-access*.log
