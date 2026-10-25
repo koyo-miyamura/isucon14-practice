@@ -1,93 +1,343 @@
 <!doctype html>
 <html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ISURIDE | Ruby アプリケーション全体像</title>
-  <style>
-    :root { color-scheme: light; --paper: #f8faf9; --ink: #202b28; --muted: #586560; --line: #d4ded8; --green: #14644e; --red: #ab3d47; }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
-    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "BIZ UDPGothic", "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif; font-size: 15px; line-height: 1.85; letter-spacing: 0; }
-    a { color: var(--green); text-underline-offset: 4px; overflow-wrap: anywhere; }
-    a:focus-visible, summary:focus-visible { outline: 3px solid var(--red); outline-offset: 4px; }
-    .wrap { max-width: 1160px; margin: auto; padding: 0 32px; }
-    header { padding: 54px 0 32px; border-top: 7px solid var(--green); background: repeating-linear-gradient(90deg, transparent 0 79px, #14644e06 79px 80px); }
-    .eyebrow { color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: 0; }
-    h1 { margin: 12px 0 18px; font-size: 44px; line-height: 1.25; }
-    h1 span { display: block; margin-top: 12px; font-size: 23px; font-weight: 500; }
-    .intro { max-width: 780px; margin-bottom: 24px; font-size: 17px; }
-    .facts { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font-size: 13px; }
-    nav { border-block: 1px solid var(--line); }
-    nav .wrap { display: flex; flex-wrap: wrap; gap: 8px 26px; padding-block: 14px; }
-    nav a { font-size: 13px; text-decoration: none; }
-    section { padding: 40px 0; border-bottom: 1px solid var(--line); }
-    .heading { display: flex; gap: 16px; align-items: baseline; margin-bottom: 16px; }
-    .number { font-size: 13px; color: var(--red); font-weight: 700; }
-    h2 { font-size: 24px; margin: 0; line-height: 1.5; }
-    h3 { margin: 0 0 8px; font-size: 17px; }
-    p { margin: 8px 0 16px; }
-    .muted, .caption { color: var(--muted); }
-    .caption { font-size: 13px; margin-top: 14px; }
-    .diagram { overflow-x: auto; padding: 20px 0; min-height: 180px; }
-    .diagram svg { display: block; margin: auto; max-width: 100%; height: auto; }
-    .diagram pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-    details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
-    summary { color: var(--green); cursor: pointer; font-size: 13px; }
-    pre.source { padding: 16px; background: #edf2ef; overflow: auto; font-size: 12px; line-height: 1.7; }
-    code { font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; overflow-wrap: anywhere; }
-    .table-scroll { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-    th { color: var(--muted); font-weight: 500; font-size: 12px; }
-    td, th { border-bottom: 1px solid var(--line); padding: 14px 12px; vertical-align: top; }
-    td:first-child, th:first-child { padding-left: 0; }
-    td:last-child, th:last-child { padding-right: 0; }
-    .roles td:first-child { width: 24%; }
-    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-    .note { border-left: 3px solid var(--red); padding-left: 18px; margin: 24px 0 0; }
-    .formula { margin: 16px 0; color: var(--green); font-size: 18px; font-weight: 700; }
-    ul, ol { padding-left: 22px; margin: 10px 0; }
-    li { margin: 8px 0; }
-    footer { padding: 28px 0 40px; color: var(--muted); font-size: 12px; }
-    @media (max-width: 680px) {
-      .wrap { padding-inline: 20px; }
-      header { padding-top: 32px; }
-      h1 { font-size: 36px; }
-      h1 span { font-size: 20px; }
-      h2 { font-size: 21px; }
-      .columns { grid-template-columns: 1fr; gap: 24px; }
-      section { padding-block: 30px; }
-      .roles { min-width: 610px; }
-      .diagram svg { min-width: 650px; }
-    }
-    @media print {
-      body { background: white; font-size: 11px; }
-      .wrap { max-width: none; padding-inline: 0; }
-      header, section { padding-block: 18px; }
-      nav, details { display: none; }
-      .diagram { overflow: visible; }
-      .diagram svg { min-width: 0; }
-      h2, h3 { break-after: avoid; }
-      tr, .note { break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="wrap">
-      <div class="eyebrow">ISUCON14 / RUBY IMPLEMENTATION</div>
-      <h1>ISURIDE<span>椅子を呼ぶ。その裏側を、一枚で。</span></h1>
-      <p class="intro">利用者と自走する椅子を結び、配車・移動・決済までを扱うアプリケーション。Ruby 版は、役割別の Sinatra Handler と MySQL を中心に構成されています。</p>
-      <div class="facts"><span>入口: Rack</span><span>API: Sinatra / JSON</span><span>永続化: MySQL / mysql2</span><span>外部連携: HTTP 決済</span></div>
-    </div>
-  </header>
-  <nav aria-label="目次"><div class="wrap"><a href="#architecture">01 全体構成</a><a href="#roles">02 API と責務</a><a href="#lifecycle">03 配車の流れ</a><a href="#data">04 データ構造</a><a href="#rules">05 料金と設計上の要点</a><a href="#reading">06 コードの読み順</a></div></nav>
-  <main class="wrap">
-    <section id="architecture">
-      <div class="heading"><span class="number">01</span><h2>全体構成</h2></div>
-      <p>利用者・椅子・オーナーの API を分離し、共通の DB 接続・トランザクション・料金計算を <code>BaseHandler</code> に集約。内部マッチング API は、外部から定期的に呼ばれる前提です。</p>
-      <div class="diagram" id="architecture-diagram" role="img" aria-label="利用者・椅子・オーナーと Ruby の各 Handler、MySQL、決済サービスの関係"></div>
-      <details><summary>Mermaid ソース</summary><pre class="source" id="architecture-source">flowchart TB
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ISURIDE | Ruby アプリケーション全体像</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f8faf9;
+        --ink: #202b28;
+        --muted: #586560;
+        --line: #d4ded8;
+        --green: #14644e;
+        --red: #ab3d47;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 24px;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          "BIZ UDPGothic", "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+        font-size: 15px;
+        line-height: 1.85;
+        letter-spacing: 0;
+      }
+      a {
+        color: var(--green);
+        text-underline-offset: 4px;
+        overflow-wrap: anywhere;
+      }
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--red);
+        outline-offset: 4px;
+      }
+      .wrap {
+        max-width: 1160px;
+        margin: auto;
+        padding: 0 32px;
+      }
+      header {
+        padding: 54px 0 32px;
+        border-top: 7px solid var(--green);
+        background: repeating-linear-gradient(
+          90deg,
+          transparent 0 79px,
+          #14644e06 79px 80px
+        );
+      }
+      .eyebrow {
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+      h1 {
+        margin: 12px 0 18px;
+        font-size: 44px;
+        line-height: 1.25;
+      }
+      h1 span {
+        display: block;
+        margin-top: 12px;
+        font-size: 23px;
+        font-weight: 500;
+      }
+      .intro {
+        max-width: 780px;
+        margin-bottom: 24px;
+        font-size: 17px;
+      }
+      .facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      nav {
+        border-block: 1px solid var(--line);
+      }
+      nav .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 26px;
+        padding-block: 14px;
+      }
+      nav a {
+        font-size: 13px;
+        text-decoration: none;
+      }
+      section {
+        padding: 40px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .heading {
+        display: flex;
+        gap: 16px;
+        align-items: baseline;
+        margin-bottom: 16px;
+      }
+      .number {
+        font-size: 13px;
+        color: var(--red);
+        font-weight: 700;
+      }
+      h2 {
+        font-size: 24px;
+        margin: 0;
+        line-height: 1.5;
+      }
+      h3 {
+        margin: 0 0 8px;
+        font-size: 17px;
+      }
+      p {
+        margin: 8px 0 16px;
+      }
+      .muted,
+      .caption {
+        color: var(--muted);
+      }
+      .caption {
+        font-size: 13px;
+        margin-top: 14px;
+      }
+      .diagram {
+        overflow-x: auto;
+        padding: 20px 0;
+        min-height: 180px;
+      }
+      .diagram svg {
+        display: block;
+        margin: auto;
+        max-width: 100%;
+        height: auto;
+      }
+      .diagram pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      details {
+        margin-top: 14px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+      summary {
+        color: var(--green);
+        cursor: pointer;
+        font-size: 13px;
+      }
+      pre.source {
+        padding: 16px;
+        background: #edf2ef;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 0.88em;
+        overflow-wrap: anywhere;
+      }
+      .table-scroll {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 14px;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 12px;
+      }
+      td,
+      th {
+        border-bottom: 1px solid var(--line);
+        padding: 14px 12px;
+        vertical-align: top;
+      }
+      td:first-child,
+      th:first-child {
+        padding-left: 0;
+      }
+      td:last-child,
+      th:last-child {
+        padding-right: 0;
+      }
+      .roles td:first-child {
+        width: 24%;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+      }
+      .note {
+        border-left: 3px solid var(--red);
+        padding-left: 18px;
+        margin: 24px 0 0;
+      }
+      .formula {
+        margin: 16px 0;
+        color: var(--green);
+        font-size: 18px;
+        font-weight: 700;
+      }
+      ul,
+      ol {
+        padding-left: 22px;
+        margin: 10px 0;
+      }
+      li {
+        margin: 8px 0;
+      }
+      footer {
+        padding: 28px 0 40px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 680px) {
+        .wrap {
+          padding-inline: 20px;
+        }
+        header {
+          padding-top: 32px;
+        }
+        h1 {
+          font-size: 36px;
+        }
+        h1 span {
+          font-size: 20px;
+        }
+        h2 {
+          font-size: 21px;
+        }
+        .columns {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        section {
+          padding-block: 30px;
+        }
+        .roles {
+          min-width: 610px;
+        }
+        .diagram svg {
+          min-width: 650px;
+        }
+      }
+      @media print {
+        body {
+          background: white;
+          font-size: 11px;
+        }
+        .wrap {
+          max-width: none;
+          padding-inline: 0;
+        }
+        header,
+        section {
+          padding-block: 18px;
+        }
+        nav,
+        details {
+          display: none;
+        }
+        .diagram {
+          overflow: visible;
+        }
+        .diagram svg {
+          min-width: 0;
+        }
+        h2,
+        h3 {
+          break-after: avoid;
+        }
+        tr,
+        .note {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <div class="eyebrow">ISUCON14 / RUBY IMPLEMENTATION</div>
+        <h1>ISURIDE<span>椅子を呼ぶ。その裏側を、一枚で。</span></h1>
+        <p class="intro">
+          利用者と自走する椅子を結び、配車・移動・決済までを扱うアプリケーション。Ruby
+          版は、役割別の Sinatra Handler と MySQL を中心に構成されています。
+        </p>
+        <div class="facts">
+          <span>入口: Rack</span><span>API: Sinatra / JSON</span
+          ><span>永続化: MySQL / mysql2</span><span>外部連携: HTTP 決済</span>
+        </div>
+      </div>
+    </header>
+    <nav aria-label="目次">
+      <div class="wrap">
+        <a href="#architecture">01 全体構成</a><a href="#roles">02 API と責務</a
+        ><a href="#lifecycle">03 配車の流れ</a><a href="#data">04 データ構造</a
+        ><a href="#rules">05 料金と設計上の要点</a
+        ><a href="#reading">06 コードの読み順</a>
+      </div>
+    </nav>
+    <main class="wrap">
+      <section id="architecture">
+        <div class="heading">
+          <span class="number">01</span>
+          <h2>全体構成</h2>
+        </div>
+        <p>
+          利用者・椅子・オーナーの API を分離し、共通の DB
+          接続・トランザクション・料金計算を
+          <code>BaseHandler</code> に集約。内部マッチング API
+          は、外部から定期的に呼ばれる前提です。
+        </p>
+        <div
+          class="diagram"
+          id="architecture-diagram"
+          role="img"
+          aria-label="利用者・椅子・オーナーと Ruby の各 Handler、MySQL、決済サービスの関係"
+        ></div>
+        <details>
+          <summary>Mermaid ソース</summary>
+          <pre class="source" id="architecture-source">
+flowchart TB
   user["利用者クライアント"] -->|"/api/app/*"| rack
   chair["椅子クライアント"] -->|"/api/chair/*"| rack
   owner["オーナークライアント"] -->|"/api/owner/*"| rack
@@ -110,30 +360,123 @@
   classDef external fill:#eef4fa,stroke:#51728c,color:#202b28
   classDef storage fill:#fceef0,stroke:#ab3d47,color:#202b28
   class user,chair,owner,timer,bench,payment external
-  class db storage</pre></details>
-      <p class="caption">実線は呼び出し・アクセスの関係。Handler はすべて BaseHandler を継承します。リバースプロキシやプロセス構成は、この Ruby 実装からは確定できないため省略しています。</p>
-    </section>
+  class db storage</pre
+          >
+        </details>
+        <p class="caption">
+          実線は呼び出し・アクセスの関係。Handler はすべて BaseHandler
+          を継承します。リバースプロキシやプロセス構成は、この Ruby
+          実装からは確定できないため省略しています。
+        </p>
+      </section>
 
-    <section id="roles">
-      <div class="heading"><span class="number">02</span><h2>API と責務</h2></div>
-      <div class="table-scroll"><table class="roles">
-        <thead><tr><th scope="col">担当 / 認証</th><th scope="col">主な API</th><th scope="col">責務・実装</th></tr></thead>
-        <tbody>
-          <tr><td><strong>利用者</strong><br><code>app_session</code></td><td><code>/api/app</code><br>POST /users, /payment-methods, /rides, /rides/estimated-fare, /rides/:ride_id/evaluation<br>GET /rides, /notification, /nearby-chairs</td><td>登録・招待クーポン、決済トークン保存、見積もり、配車依頼、履歴、評価。<br><a href="lib/isuride/app_handler.rb">app_handler.rb</a></td></tr>
-          <tr><td><strong>椅子</strong><br><code>chair_session</code></td><td><code>/api/chair</code><br>POST /chairs, /activity, /coordinate, /rides/:ride_id/status<br>GET /notification</td><td>オーナーの登録トークンで椅子を登録。受付可否・座標を更新し、配車受諾と乗車を報告。<br><a href="lib/isuride/chair_handler.rb">chair_handler.rb</a></td></tr>
-          <tr><td><strong>オーナー</strong><br><code>owner_session</code></td><td><code>/api/owner</code><br>POST /owners<br>GET /sales, /chairs</td><td>オーナー登録、椅子登録トークンの発行、椅子別・モデル別売上と総移動距離の取得。<br><a href="lib/isuride/owner_handler.rb">owner_handler.rb</a></td></tr>
-          <tr><td><strong>内部処理</strong><br>Handler 内の認証なし</td><td>GET /api/internal/matching</td><td>最古の未割当ライドに、受付中の椅子をランダムに選んで割り当て。最大 10 回試行。<br><a href="lib/isuride/internal_handler.rb">internal_handler.rb</a></td></tr>
-          <tr><td><strong>初期化</strong><br>Handler 内の認証なし</td><td>POST /api/initialize</td><td>SQL 初期化スクリプトを実行し、決済接続先を settings に保存。<br><a href="lib/isuride/initialize_handler.rb">initialize_handler.rb</a></td></tr>
-        </tbody>
-      </table></div>
-      <p class="caption">登録 API 以外の利用者・椅子・オーナー API は、Cookie のアクセストークンを DB と照合します。内部 API・初期化 API の外部公開可否は、別途ネットワーク側で制御する必要があります。</p>
-    </section>
+      <section id="roles">
+        <div class="heading">
+          <span class="number">02</span>
+          <h2>API と責務</h2>
+        </div>
+        <div class="table-scroll">
+          <table class="roles">
+            <thead>
+              <tr>
+                <th scope="col">担当 / 認証</th>
+                <th scope="col">主な API</th>
+                <th scope="col">責務・実装</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>利用者</strong><br /><code>app_session</code></td>
+                <td>
+                  <code>/api/app</code><br />POST /users, /payment-methods,
+                  /rides, /rides/estimated-fare, /rides/:ride_id/evaluation<br />GET
+                  /rides, /notification, /nearby-chairs
+                </td>
+                <td>
+                  登録・招待クーポン、決済トークン保存、見積もり、配車依頼、履歴、評価。<br /><a
+                    href="lib/isuride/app_handler.rb"
+                    >app_handler.rb</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>椅子</strong><br /><code>chair_session</code></td>
+                <td>
+                  <code>/api/chair</code><br />POST /chairs, /activity,
+                  /coordinate, /rides/:ride_id/status<br />GET /notification
+                </td>
+                <td>
+                  オーナーの登録トークンで椅子を登録。受付可否・座標を更新し、配車受諾と乗車を報告。<br /><a
+                    href="lib/isuride/chair_handler.rb"
+                    >chair_handler.rb</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>オーナー</strong><br /><code>owner_session</code>
+                </td>
+                <td>
+                  <code>/api/owner</code><br />POST /owners<br />GET /sales,
+                  /chairs
+                </td>
+                <td>
+                  オーナー登録、椅子登録トークンの発行、椅子別・モデル別売上と総移動距離の取得。<br /><a
+                    href="lib/isuride/owner_handler.rb"
+                    >owner_handler.rb</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>内部処理</strong><br />Handler 内の認証なし</td>
+                <td>GET /api/internal/matching</td>
+                <td>
+                  最古の未割当ライドに、受付中の椅子をランダムに選んで割り当て。最大
+                  10 回試行。<br /><a href="lib/isuride/internal_handler.rb"
+                    >internal_handler.rb</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>初期化</strong><br />Handler 内の認証なし</td>
+                <td>POST /api/initialize</td>
+                <td>
+                  SQL 初期化スクリプトを実行し、決済接続先を settings
+                  に保存。<br /><a href="lib/isuride/initialize_handler.rb"
+                    >initialize_handler.rb</a
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          登録 API 以外の利用者・椅子・オーナー API は、Cookie
+          のアクセストークンを DB と照合します。内部 API・初期化 API
+          の外部公開可否は、別途ネットワーク側で制御する必要があります。
+        </p>
+      </section>
 
-    <section id="lifecycle">
-      <div class="heading"><span class="number">03</span><h2>一回の配車を追う</h2></div>
-      <p>ライド本体は <code>rides</code>、状態の履歴は <code>ride_statuses</code> に保存します。椅子の割り当てと <code>ENROUTE</code> への遷移は別処理です。</p>
-      <div class="diagram" id="lifecycle-diagram" role="img" aria-label="MATCHING から COMPLETED までの配車状態遷移"></div>
-      <details><summary>Mermaid ソース</summary><pre class="source" id="lifecycle-source">stateDiagram-v2
+      <section id="lifecycle">
+        <div class="heading">
+          <span class="number">03</span>
+          <h2>一回の配車を追う</h2>
+        </div>
+        <p>
+          ライド本体は <code>rides</code>、状態の履歴は
+          <code>ride_statuses</code> に保存します。椅子の割り当てと
+          <code>ENROUTE</code> への遷移は別処理です。
+        </p>
+        <div
+          class="diagram"
+          id="lifecycle-diagram"
+          role="img"
+          aria-label="MATCHING から COMPLETED までの配車状態遷移"
+        ></div>
+        <details>
+          <summary>Mermaid ソース</summary>
+          <pre class="source" id="lifecycle-source">
+stateDiagram-v2
   direction LR
   [*] --> MATCHING: 利用者が配車依頼
   MATCHING --> ENROUTE: 割当後、椅子が受諾
@@ -141,19 +484,81 @@
   PICKUP --> CARRYING: 椅子が乗車を報告
   CARRYING --> ARRIVED: 目的地の座標を送信
   ARRIVED --> COMPLETED: 利用者が評価・決済成功
-  COMPLETED --> [*]</pre></details>
-      <div class="columns">
-        <div><h3>依頼から移動まで</h3><ol><li>利用者が見積もりを確認し、配車を依頼。未完了ライドがあれば <code>429</code> を返します。</li><li>ライドと <code>MATCHING</code> 履歴を作成し、使用クーポンを紐付けます。</li><li>内部 API が <code>rides.chair_id</code> を更新。椅子は通知 API で依頼を受け取り、<code>ENROUTE</code> を送信します。</li><li>位置送信で迎車地点・目的地との座標一致を判定。乗車開始だけは椅子から明示的に報告します。</li></ol></div>
-        <div><h3>到着から完了まで</h3><ol start="5"><li>到着後、利用者が 1〜5 の評価を送信します。</li><li>トランザクション内で評価・<code>COMPLETED</code> を書き込み、決済トークンで外部決済を実行。成功後にコミットします。</li><li>決済 POST が非 204 の場合は GET で件数を照合。例外時は最大 5 回再試行します。DB のロールバックと外部決済は一体のトランザクションではありません。</li></ol></div>
-      </div>
-      <div class="note"><strong>通知はポーリング。配車の空き判定にも関わります。</strong><p>利用者・椅子の <code>GET /notification</code> は JSON と <code>retry_after_ms: 30</code> を返します。未送信履歴を古い順に 1 件返し、<code>app_sent_at</code> / <code>chair_sent_at</code> を更新。マッチングでは、過去ライドごとの椅子向け通知済み件数が 6 件かどうかで空きを判定します。</p></div>
-    </section>
+  COMPLETED --> [*]</pre
+          >
+        </details>
+        <div class="columns">
+          <div>
+            <h3>依頼から移動まで</h3>
+            <ol>
+              <li>
+                利用者が見積もりを確認し、配車を依頼。未完了ライドがあれば
+                <code>429</code> を返します。
+              </li>
+              <li>
+                ライドと
+                <code>MATCHING</code> 履歴を作成し、使用クーポンを紐付けます。
+              </li>
+              <li>
+                内部 API が <code>rides.chair_id</code> を更新。椅子は通知 API
+                で依頼を受け取り、<code>ENROUTE</code> を送信します。
+              </li>
+              <li>
+                位置送信で迎車地点・目的地との座標一致を判定。乗車開始だけは椅子から明示的に報告します。
+              </li>
+            </ol>
+          </div>
+          <div>
+            <h3>到着から完了まで</h3>
+            <ol start="5">
+              <li>到着後、利用者が 1〜5 の評価を送信します。</li>
+              <li>
+                トランザクション内で評価・<code>COMPLETED</code>
+                を書き込み、決済トークンで外部決済を実行。成功後にコミットします。
+              </li>
+              <li>
+                決済 POST が非 204 の場合は GET で件数を照合。例外時は最大 5
+                回再試行します。DB
+                のロールバックと外部決済は一体のトランザクションではありません。
+              </li>
+            </ol>
+          </div>
+        </div>
+        <div class="note">
+          <strong>通知はポーリング。配車の空き判定にも関わります。</strong>
+          <p>
+            利用者・椅子の <code>GET /notification</code> は JSON と
+            <code>retry_after_ms: 30</code> を返します。未送信履歴を古い順に 1
+            件返し、<code>app_sent_at</code> /
+            <code>chair_sent_at</code>
+            を更新。マッチングでは、過去ライドごとの椅子向け通知済み件数が 6
+            件かどうかで空きを判定します。
+          </p>
+        </div>
+      </section>
 
-    <section id="data">
-      <div class="heading"><span class="number">04</span><h2>データの中心は rides</h2></div>
-      <p>下図は ID による論理的な関連です。<a href="../sql/1-schema.sql">1-schema.sql</a> に外部キー制約の定義はありません。</p>
-      <div class="diagram" id="data-diagram" role="img" aria-label="利用者、椅子、ライド、状態履歴、クーポンなどのデータ関連図"></div>
-      <details><summary>Mermaid ソース</summary><pre class="source" id="data-source">erDiagram
+      <section id="data">
+        <div class="heading">
+          <span class="number">04</span>
+          <h2>データの中心は rides</h2>
+        </div>
+        <p>
+          下図は全 10 テーブル・56 カラムと、論理的な関連です。<a
+            href="../sql/1-schema.sql"
+            >1-schema.sql</a
+          >
+          に外部キー制約の定義はありません。
+        </p>
+        <div
+          class="diagram"
+          id="data-diagram"
+          role="img"
+          aria-label="利用者、椅子、ライド、状態履歴、クーポンなどのデータ関連図"
+        ></div>
+        <details>
+          <summary>Mermaid ソース</summary>
+          <pre class="source" id="data-source">
+erDiagram
   users ||--o{ rides : user_id
   owners ||--o{ chairs : owner_id
   chairs |o--o{ rides : chair_id
@@ -163,69 +568,262 @@
   users ||--o{ coupons : user_id
   rides |o--o| coupons : used_by
   chair_models ||--o{ chairs : model
+  settings {
+    varchar(30) name PK
+    text value
+  }
+  chair_models {
+    varchar(50) name PK
+    integer speed
+  }
+  chairs {
+    varchar(26) id PK
+    varchar(26) owner_id
+    varchar(30) name
+    text model
+    tinyint(1) is_active
+    varchar(255) access_token
+    datetime(6) created_at
+    datetime(6) updated_at
+  }
+  chair_locations {
+    varchar(26) id PK
+    varchar(26) chair_id
+    integer latitude
+    integer longitude
+    datetime(6) created_at
+  }
+  users {
+    varchar(26) id PK
+    varchar(30) username UK
+    varchar(30) firstname
+    varchar(30) lastname
+    varchar(30) date_of_birth
+    varchar(255) access_token UK
+    varchar(30) invitation_code UK
+    datetime(6) created_at
+    datetime(6) updated_at
+  }
+  payment_tokens {
+    varchar(26) user_id PK
+    varchar(255) token
+    datetime(6) created_at
+  }
   rides {
-    varchar id PK
-    varchar user_id
-    varchar chair_id "割当前は NULL"
+    varchar(26) id PK
+    varchar(26) user_id
+    varchar(26) chair_id "NULL 可・割当前は NULL"
     integer pickup_latitude
     integer pickup_longitude
     integer destination_latitude
     integer destination_longitude
-    integer evaluation "評価前は NULL"
+    integer evaluation "NULL 可・評価前は NULL"
+    datetime(6) created_at
+    datetime(6) updated_at
   }
   ride_statuses {
-    varchar id PK
-    varchar ride_id
-    enum status
-    datetime created_at
-    datetime app_sent_at
-    datetime chair_sent_at
-  }</pre></details>
-      <div class="columns">
-        <div><h3>履歴から現在値を求める</h3><p><code>ride_statuses</code> の最新行が現在の配車状態。<code>chair_locations</code> の最新行が現在位置です。オーナー向け総移動距離は、位置履歴の隣接点の距離を SQL の <code>LAG</code> で合算します。</p></div>
-        <div><h3>設定とマスタ</h3><p><code>settings</code> は決済接続先などの設定、<code>chair_models</code> はモデル名・移動速度のマスタです。現行の Ruby マッチングは、モデルの速度や迎車距離を使って最適化する実装ではありません。</p></div>
-      </div>
-    </section>
+    varchar(26) id PK
+    varchar(26) ride_id
+    enum status "MATCHING / ENROUTE / PICKUP / CARRYING / ARRIVED / COMPLETED"
+    datetime(6) created_at
+    datetime(6) app_sent_at "NULL 可"
+    datetime(6) chair_sent_at "NULL 可"
+  }
+  owners {
+    varchar(26) id PK
+    varchar(30) name UK
+    varchar(255) access_token UK
+    varchar(255) chair_register_token UK
+    datetime(6) created_at
+    datetime(6) updated_at
+  }
+  coupons {
+    varchar(26) user_id PK "code との複合主キー"
+    varchar(255) code PK "user_id との複合主キー"
+    integer discount
+    datetime(6) created_at
+    varchar(26) used_by "NULL 可"
+  }</pre
+          >
+        </details>
+        <div class="columns">
+          <div>
+            <h3>履歴から現在値を求める</h3>
+            <p>
+              <code>ride_statuses</code> の最新行が現在の配車状態。<code
+                >chair_locations</code
+              >
+              の最新行が現在位置です。オーナー向け総移動距離は、位置履歴の隣接点の距離を
+              SQL の <code>LAG</code> で合算します。
+            </p>
+          </div>
+          <div>
+            <h3>設定とマスタ</h3>
+            <p>
+              <code>settings</code> は決済接続先などの設定、<code
+                >chair_models</code
+              >
+              はモデル名・移動速度のマスタです。現行の Ruby
+              マッチングは、モデルの速度や迎車距離を使って最適化する実装ではありません。
+            </p>
+          </div>
+        </div>
+      </section>
 
-    <section id="rules">
-      <div class="heading"><span class="number">05</span><h2>料金と設計上の要点</h2></div>
-      <div class="columns">
-        <div><h3>料金とクーポン</h3><p>距離は緯度差と経度差の絶対値の和、つまりマンハッタン距離です。道路距離や地理座標の km 換算ではありません。</p><div class="formula">支払額 = 500 + max(100 × 距離 − 割引額, 0)</div><ul><li>初乗り 500 円は割引されず、最低支払額も 500 円です。</li><li>登録時に初回クーポン 3,000 円分を付与。初回配車ではこれを優先し、その後は未使用クーポンを付与順に使います。</li><li>招待登録は同じ招待コードで最大 3 人。被招待者に 1,500 円、招待者に 1,000 円分を付与します。</li><li>オーナー売上はクーポン割引前の料金で集計します。</li></ul></div>
-        <div><h3>ISUCON で確認したい処理</h3><ul><li><strong>繰り返し SQL:</strong> 履歴一覧・近隣椅子・評価統計で、ループ内に追加の SQL が発生します。</li><li><strong>通知の頻度:</strong> 30ms の再試行間隔を返す通知 API が、履歴参照・集計・送信済み更新を実行します。</li><li><strong>割り当て:</strong> <code>ORDER BY RAND()</code> と通知履歴の集計を使用。競合時の二重割り当てを防ぐトランザクションや行ロックは、この処理にはありません。</li><li><strong>決済待ち:</strong> 外部 HTTP とリトライの間も DB トランザクションが開いたままです。</li><li><strong>DB 接続:</strong> <code>Thread.current[:db]</code> に接続を保持し、ORM を介さず SQL を直接発行します。</li></ul></div>
-      </div>
-      <p class="caption">ここに挙げた処理はコードから読み取れる確認候補です。実際のボトルネックは、ベンチマーク・SQL 実行計画・プロファイルで判断します。</p>
-    </section>
+      <section id="rules">
+        <div class="heading">
+          <span class="number">05</span>
+          <h2>料金と設計上の要点</h2>
+        </div>
+        <div class="columns">
+          <div>
+            <h3>料金とクーポン</h3>
+            <p>
+              距離は緯度差と経度差の絶対値の和、つまりマンハッタン距離です。道路距離や地理座標の
+              km 換算ではありません。
+            </p>
+            <div class="formula">
+              支払額 = 500 + max(100 × 距離 − 割引額, 0)
+            </div>
+            <ul>
+              <li>初乗り 500 円は割引されず、最低支払額も 500 円です。</li>
+              <li>
+                登録時に初回クーポン 3,000
+                円分を付与。初回配車ではこれを優先し、その後は未使用クーポンを付与順に使います。
+              </li>
+              <li>
+                招待登録は同じ招待コードで最大 3 人。被招待者に 1,500
+                円、招待者に 1,000 円分を付与します。
+              </li>
+              <li>オーナー売上はクーポン割引前の料金で集計します。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>ISUCON で確認したい処理</h3>
+            <ul>
+              <li>
+                <strong>繰り返し SQL:</strong>
+                履歴一覧・近隣椅子・評価統計で、ループ内に追加の SQL
+                が発生します。
+              </li>
+              <li>
+                <strong>通知の頻度:</strong> 30ms の再試行間隔を返す通知 API
+                が、履歴参照・集計・送信済み更新を実行します。
+              </li>
+              <li>
+                <strong>割り当て:</strong>
+                <code>ORDER BY RAND()</code>
+                と通知履歴の集計を使用。競合時の二重割り当てを防ぐトランザクションや行ロックは、この処理にはありません。
+              </li>
+              <li>
+                <strong>決済待ち:</strong> 外部 HTTP とリトライの間も DB
+                トランザクションが開いたままです。
+              </li>
+              <li>
+                <strong>DB 接続:</strong>
+                <code>Thread.current[:db]</code> に接続を保持し、ORM を介さず
+                SQL を直接発行します。
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p class="caption">
+          ここに挙げた処理はコードから読み取れる確認候補です。実際のボトルネックは、ベンチマーク・SQL
+          実行計画・プロファイルで判断します。
+        </p>
+      </section>
 
-    <section id="reading">
-      <div class="heading"><span class="number">06</span><h2>コードの読み順</h2></div>
-      <ol><li><a href="config.ru">config.ru</a> で URL と Handler の対応を確認。</li><li><a href="lib/isuride/base_handler.rb">lib/isuride/base_handler.rb</a> で DB 接続・例外・距離と料金の共通処理を把握。</li><li><a href="lib/isuride/app_handler.rb">lib/isuride/app_handler.rb</a> の <code>POST /rides</code> → <a href="lib/isuride/internal_handler.rb">lib/isuride/internal_handler.rb</a> → <a href="lib/isuride/chair_handler.rb">lib/isuride/chair_handler.rb</a> の順に配車を追跡。</li><li>利用者側の <code>POST /rides/:ride_id/evaluation</code> と <a href="lib/isuride/payment_gateway.rb">lib/isuride/payment_gateway.rb</a> で完了・決済を確認。</li><li><a href="lib/isuride/owner_handler.rb">lib/isuride/owner_handler.rb</a> と <a href="../sql/1-schema.sql">../sql/1-schema.sql</a> で集計とデータ構造を補完。</li></ol>
-    </section>
-  </main>
-  <footer class="wrap">対象: このリポジトリの Ruby 実装。説明ページのため、実際の API 呼び出しや DB 更新は行いません。図の描画には CDN から Mermaid 11 を読み込みます。ネットワーク未接続時も本文と Mermaid ソースは参照できます。</footer>
-  <script type="module">
-    const names = ['architecture', 'lifecycle', 'data'];
-    for (const name of names) {
-      const placeholder = document.createElement('p');
-      placeholder.textContent = '図を読み込み中です。Mermaid ソースは下の項目から確認できます。';
-      document.getElementById(`${name}-diagram`).append(placeholder);
-    }
-    try {
-      const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
-      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'base', themeVariables: { fontFamily: 'sans-serif', primaryColor: '#e8f3ed', primaryTextColor: '#202b28', primaryBorderColor: '#43806b', lineColor: '#687a70', secondaryColor: '#eef4fa', tertiaryColor: '#fceef0' } });
+      <section id="reading">
+        <div class="heading">
+          <span class="number">06</span>
+          <h2>コードの読み順</h2>
+        </div>
+        <ol>
+          <li>
+            <a href="config.ru">config.ru</a> で URL と Handler の対応を確認。
+          </li>
+          <li>
+            <a href="lib/isuride/base_handler.rb"
+              >lib/isuride/base_handler.rb</a
+            >
+            で DB 接続・例外・距離と料金の共通処理を把握。
+          </li>
+          <li>
+            <a href="lib/isuride/app_handler.rb">lib/isuride/app_handler.rb</a>
+            の <code>POST /rides</code> →
+            <a href="lib/isuride/internal_handler.rb"
+              >lib/isuride/internal_handler.rb</a
+            >
+            →
+            <a href="lib/isuride/chair_handler.rb"
+              >lib/isuride/chair_handler.rb</a
+            >
+            の順に配車を追跡。
+          </li>
+          <li>
+            利用者側の <code>POST /rides/:ride_id/evaluation</code> と
+            <a href="lib/isuride/payment_gateway.rb"
+              >lib/isuride/payment_gateway.rb</a
+            >
+            で完了・決済を確認。
+          </li>
+          <li>
+            <a href="lib/isuride/owner_handler.rb"
+              >lib/isuride/owner_handler.rb</a
+            >
+            と
+            <a href="../sql/1-schema.sql">../sql/1-schema.sql</a>
+            で集計とデータ構造を補完。
+          </li>
+        </ol>
+      </section>
+    </main>
+    <footer class="wrap">
+      対象: このリポジトリの Ruby 実装。説明ページのため、実際の API 呼び出しや
+      DB 更新は行いません。図の描画には CDN から Mermaid 11
+      を読み込みます。ネットワーク未接続時も本文と Mermaid
+      ソースは参照できます。
+    </footer>
+    <script type="module">
+      const names = ["architecture", "lifecycle", "data"];
       for (const name of names) {
-        const source = document.getElementById(`${name}-source`).textContent;
-        const { svg } = await mermaid.render(`${name}-svg`, source);
-        document.getElementById(`${name}-diagram`).innerHTML = svg;
+        const placeholder = document.createElement("p");
+        placeholder.textContent =
+          "図を読み込み中です。Mermaid ソースは下の項目から確認できます。";
+        document.getElementById(`${name}-diagram`).append(placeholder);
       }
-    } catch (error) {
-      for (const name of names) {
-        const diagram = document.getElementById(`${name}-diagram`);
-        if (!diagram.querySelector('svg')) {
-          diagram.textContent = '図を描画できませんでした。下の Mermaid ソースを参照してください。';
+      try {
+        const { default: mermaid } =
+          await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: "base",
+          themeVariables: {
+            fontFamily: "sans-serif",
+            primaryColor: "#e8f3ed",
+            primaryTextColor: "#202b28",
+            primaryBorderColor: "#43806b",
+            lineColor: "#687a70",
+            secondaryColor: "#eef4fa",
+            tertiaryColor: "#fceef0",
+          },
+        });
+        for (const name of names) {
+          const source = document.getElementById(`${name}-source`).textContent;
+          const { svg } = await mermaid.render(`${name}-svg`, source);
+          document.getElementById(`${name}-diagram`).innerHTML = svg;
         }
+      } catch (error) {
+        for (const name of names) {
+          const diagram = document.getElementById(`${name}-diagram`);
+          if (!diagram.querySelector("svg")) {
+            diagram.textContent =
+              "図を描画できませんでした。下の Mermaid ソースを参照してください。";
+          }
+        }
+        console.error("Mermaid rendering failed", error);
       }
-      console.error('Mermaid rendering failed', error);
-    }
-  </script>
-</body>
+    </script>
+  </body>
 </html>
