@@ -4,7 +4,7 @@
 
 - 対象は [lib/isuride](lib/isuride) の Ruby 実装が直接発行する SQL。重複する SQL はまとめ、SQL 内の `?` はバインド値を表す。
 - 既存索引は [../sql/1-schema.sql](../sql/1-schema.sql) を基準とする。稼働 DB に手動追加された索引は未確認。
-- 以下はコードとスキーマに基づく提案であり、実 DB の実行計画・レイテンシ・ベンチマークは未測定。DDL はこのドキュメントに記載するだけで、適用していない。
+- A1〜A9 は [../sql/1-schema.sql](../sql/1-schema.sql) に追加済み。実 DB の実行計画・レイテンシ・ベンチマークは未測定なので、効果と書き込みコストは検証が必要。稼働 DB への適用は別途必要。
 - 「優先」は最初に検証する候補、「条件付き」は計測で必要性を確認してから追加する候補。すべてを無条件に追加する意味ではない。
 - 索引は主に検索対象とソート量を減らすもの。N+1、全件集計、外部決済待ち、配車の競合制御は別途対応が必要。
 
@@ -12,20 +12,20 @@
 
 全テーブルに以下の主キーがある。
 
-| テーブル | PRIMARY KEY | その他の UNIQUE |
-| --- | --- | --- |
-| settings | `(name)` | なし |
-| chair_models | `(name)` | なし |
-| chairs | `(id)` | なし |
-| chair_locations | `(id)` | なし |
-| users | `(id)` | `(username)`, `(access_token)`, `(invitation_code)` |
-| payment_tokens | `(user_id)` | なし |
-| rides | `(id)` | なし |
-| ride_statuses | `(id)` | なし |
-| owners | `(id)` | `(name)`, `(access_token)`, `(chair_register_token)` |
-| coupons | `(user_id, code)` | なし |
+| テーブル | PRIMARY KEY | その他の UNIQUE | その他の索引 |
+| --- | --- | --- | --- |
+| settings | `(name)` | なし | なし |
+| chair_models | `(name)` | なし | なし |
+| chairs | `(id)` | なし | `(access_token)` |
+| chair_locations | `(id)` | なし | `(chair_id, created_at)` |
+| users | `(id)` | `(username)`, `(access_token)`, `(invitation_code)` | なし |
+| payment_tokens | `(user_id)` | なし | なし |
+| rides | `(id)` | なし | `(user_id, created_at)`, `(chair_id, created_at)`, `(chair_id, updated_at)` |
+| ride_statuses | `(id)` | なし | `(ride_id, created_at)` |
+| owners | `(id)` | `(name)`, `(access_token)`, `(chair_register_token)` | なし |
+| coupons | `(user_id, code)` | なし | `(code)`, `(used_by)`, `(user_id, used_by, created_at)` |
 
-特に、`chairs.access_token` は `users`・`owners` と異なり、既存の索引がない。
+追加した A1〜A9 は非 UNIQUE 索引であり、データ制約は変更しない。
 
 ## 発行 SQL 一覧
 
@@ -179,8 +179,8 @@ SELECT * FROM ride_statuses WHERE ride_id = ? ORDER BY created_at;
 出典: [app_handler.rb](lib/isuride/app_handler.rb)。`GET /api/app/nearby-chairs`。
 
 ```sql
--- 現行コードは全椅子を読み、Ruby 側で is_active を判定
-SELECT * FROM chairs;
+-- 受付中の椅子だけ取得し、以降の椅子ごとの照会対象を減らす
+SELECT id, name, model FROM chairs WHERE is_active = TRUE;
 
 -- 椅子ごとの最新ライド: A3
 SELECT * FROM rides WHERE chair_id = ? ORDER BY created_at DESC LIMIT 1;
@@ -370,7 +370,7 @@ ALTER TABLE ride_statuses
 - 初回クーポンの `(user_id, code)`、決済トークンの user_id、settings の name は既存主キーで十分。
 - A2 があれば単独 `(user_id)`、A3/A4 があれば単独 `(chair_id)` を rides に重ねて追加する必要は通常ない。複合索引の左端を利用できる。
 - `chair_models` は Ruby の通常処理から直接 SELECT されていない。今回の対象 SQL のための追加索引は不要。
-- `SELECT * FROM chairs` は全件取得なので、is_active 索引だけ追加しても改善しない。DB 側で受付中を絞るなら SQL の変更が必要。
+- 近隣椅子検索は DB 側で `is_active` を絞るよう変更済み。B4 の索引は受付中の椅子が少ない場合に効果を計測して判断する。
 - 緯度・経度の索引は、Ruby 側のマンハッタン距離判定をそのまま高速化しない。
 - `SELECT *` を多数使っているため、一般的な複合索引を追加しても全列を覆うカバリング索引になるわけではない。
 - N+1 を減らすにはまとめ取得・JOIN・状態や統計の保持などを検討する。各 SQL が速くなっても往復回数は残る。
@@ -383,7 +383,7 @@ ALTER TABLE ride_statuses
 2. ベンチマークで SQL の実行回数・合計時間・返却行数を測り、認証、最新ライド、最新状態、最新位置など実際に負荷の高い経路から検証する。
 3. 代表値を入れた SELECT に `EXPLAIN` を実行する。利用可能なら検証環境で `EXPLAIN ANALYZE` を使い、実走査行数・ソート・JOIN 順序・実時間を比較する。
 4. 候補を小さな単位で追加し、読取改善だけでなく座標 INSERT、状態 INSERT、通知済み UPDATE、ライド割当・更新の遅延とロック待ちも比較する。
-5. 初期化後も必要なら [../sql/1-schema.sql](../sql/1-schema.sql) の CREATE TABLE に採用した索引を反映する。通常の初期化はテーブルを作り直すため、手動 ALTER だけでは消える。DDL の配置と初期データ投入時間も確認する。
+5. A1〜A9 は [../sql/1-schema.sql](../sql/1-schema.sql) に定義済み。通常の初期化はテーブルを作り直すため、稼働 DB へ手動 ALTER した索引も初期化後に必要ならスキーマへ反映する。DDL の配置と初期データ投入時間も確認する。
 
 ```sql
 -- ベンチマーク用 DB / 検証環境での例。実データに存在する値へ置換する。
