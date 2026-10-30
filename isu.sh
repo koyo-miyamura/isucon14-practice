@@ -78,7 +78,7 @@ remote() {
     env+="$(printf '%q' "$kv") "
   done
   # shellcheck disable=SC2086  # SSH_OPTS は意図的に単語分割する
-  ssh.exe $SSH_OPTS "$SSH_USER@$host" "${env}bash -lse"
+  ssh $SSH_OPTS "$SSH_USER@$host" "${env}bash -lse"
 }
 
 # each "HOST HOST ..." [VAR=value ...] <<'EOF' : 標準入力のスクリプトを各ホストで順に実行し、失敗したら止まる。
@@ -95,7 +95,7 @@ each() {
 # --delete は意図的に付けていない (conf/ の取り忘れで /etc 側を消す事故を防ぐ)。
 # そのため手元で消したファイルはサーバーに残る。消したいときは make ssh で直接消すか、中身を空にする。
 # shellcheck disable=SC2086
-rsync_sudo() { rsync -rtv -e "ssh.exe $SSH_OPTS" --rsync-path="sudo rsync" "$@"; }
+rsync_sudo() { rsync -rtv -e "ssh $SSH_OPTS" --rsync-path="sudo rsync" "$@"; }
 
 require_run() { [ -n "$RUN_ID" ] || die "RUN_ID is empty: run 'make prepare-bench' first or pass RUN_ID=..."; }
 
@@ -308,11 +308,11 @@ cmd_logs() { ## journal を見る。make logs SINCE=-10min UNITS="nginx.service"
   local h=${1:-${HOST:-${APP_HOSTS[0]}}} args="" u
   for u in ${UNITS:-$APP_UNITS}; do args="$args -u $u"; done
   # shellcheck disable=SC2086
-  ssh.exe $SSH_OPTS "$SSH_USER@$h" "sudo journalctl $args --since '$SINCE' --no-pager -o short-iso"
+  ssh $SSH_OPTS "$SSH_USER@$h" "sudo journalctl $args --since '$SINCE' --no-pager -o short-iso"
 }
 
 cmd_ssh() { ## サーバーにログインする。make ssh HOST=...
-  exec ssh.exe "$SSH_USER@${1:-${HOST:-${APP_HOSTS[0]}}}"
+  exec ssh "$SSH_USER@${1:-${HOST:-${APP_HOSTS[0]}}}"
 }
 
 cmd_mysql() { ## DB サーバーの MySQL に入る。make mysql [HOST=...] [Q="SELECT ..."] (Q を付けると 1 回実行して戻る)
@@ -325,7 +325,7 @@ cmd_mysql() { ## DB サーバーの MySQL に入る。make mysql [HOST=...] [Q="
     tty=
   fi
   # shellcheck disable=SC2086
-  exec ssh.exe $SSH_OPTS $tty "$SSH_USER@$h" "REPO=$(printf '%q' "$REMOTE_REPO") bash -c $(printf '%q' "$remote_cmd")"
+  exec ssh $SSH_OPTS $tty "$SSH_USER@$h" "REPO=$(printf '%q' "$REMOTE_REPO") bash -c $(printf '%q' "$remote_cmd")"
 }
 
 # ---- ベンチ --------------------------------------------------------------------
@@ -333,7 +333,7 @@ cmd_new_run() { ## 新しい RUN_ID を発行し、サーバー側の現在時�
   mkdir -p "$LOCAL_LOG"
   # 手元とサーバーの時計がずれていても journalctl --since が正しく効くよう、サーバーの時刻を使う
   # shellcheck disable=SC2086
-  SINCE=$(ssh.exe $SSH_OPTS "$SSH_USER@${HOSTS[0]}" "date '+%F %T'")
+  SINCE=$(ssh $SSH_OPTS "$SSH_USER@${HOSTS[0]}" "date '+%F %T'")
   RUN_ID=$(date +%Y%m%d_%H%M%S)
   echo "$RUN_ID" > "$LOCAL_LOG/.current_run"
   echo "$SINCE"  > "$LOCAL_LOG/.current_since"
@@ -443,7 +443,7 @@ cmd_fetch_logs() { ## 各ホストの log/RUN_ID を手元の log/RUN_ID/<host>/
     log "$h"
     mkdir -p "$LOCAL_LOG/$RUN_ID/$h"
     # shellcheck disable=SC2086
-    rsync -rtz -e "ssh.exe $SSH_OPTS" "${excludes[@]}" "$SSH_USER@$h:$REMOTE_LOG/$RUN_ID/" "$LOCAL_LOG/$RUN_ID/$h/"
+    rsync -rtz -e "ssh $SSH_OPTS" "${excludes[@]}" "$SSH_USER@$h:$REMOTE_LOG/$RUN_ID/" "$LOCAL_LOG/$RUN_ID/$h/"
   done
 }
 
