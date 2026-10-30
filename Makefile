@@ -8,7 +8,7 @@
 #   状況確認:        make status / make logs SINCE=-10min / make ssh HOST=10.97.0.12
 #
 # 変数は make の引数で渡せばそのまま isu.sh に環境変数として届く。例:
-#   make prepare-bench RBSPY_UNITS=
+#   make prepare-bench RBSPY=1
 #   make deploy FORCE=1 RUBY_BIN=/home/isucon/local/ruby/bin
 
 .DEFAULT_GOAL := help

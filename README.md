@@ -16,7 +16,7 @@ ISUCON14 の練習用リポジトリ。サーバー操作は手元から `make <
 | `APP_HOSTS` / `NGINX_HOSTS` / `DB_HOSTS` | 役割ごとのサーバー IP。最初は全部 1 台目で、分離したら書き換える | 競技ポータルのサーバー一覧                                                     |
 | `APP_UNITS`                              | アプリの systemd ユニット名(複数あれば全部)                      | サーバーで `systemctl list-units --type=service \| grep -i isu`                |
 | `DB_UNITS`                               | `mysql.service` か `mariadb.service` か                          | 同上で `mysql` / `mariadb` を探す                                              |
-| `RBSPY_UNITS`                            | `APP_UNITS` のうち puma(Ruby アプリ本体)のもの                   | `systemctl cat <unit>` の `ExecStart` に puma があるもの                       |
+| `RBSPY_DEFAULT_UNITS`                    | `APP_UNITS` のうち puma(Ruby アプリ本体)のもの。`RBSPY=1` のとき rbspy を仕掛ける先 | `systemctl cat <unit>` の `ExecStart` に puma があるもの          |
 | `MYSQL_LOGS`                             | slow log / error log のパス                                      | `conf/mysqld.cnf` に書く `slow_query_log_file` と一致させる                    |
 | `ALP_MATCH`                              | パスパラメータを含む URL を束ねる正規表現(カンマ区切り)          | [webapp/openapi.yaml](webapp/openapi.yaml) や routes の `:id` を含むパスを全部 |
 | `APP_DIR`                                | `bundle install` するディレクトリ(リポジトリからの相対)          | `systemctl cat <unit>` の `WorkingDirectory`                                   |
@@ -146,10 +146,16 @@ make restart
 ### ベンチを回したい
 
 ```bash
-make prepare-bench  # 設定反映 -> 全サービス再起動 -> ログ削除 -> rbspy 開始
+make prepare-bench  # 設定反映 -> 全サービス再起動 -> ログ削除
 # ここでベンチを実行する
 make snapshot       # (任意) ベンチ中に別ターミナルで。CPU / メモリ / TIME_WAIT / ユニット状態を全サーバー分表示
-make after-bench    # rbspy 停止 -> ログ・journal を収集 -> alp / pt-query-digest -> log/<RUN_ID>/ に回収
+make after-bench    # ログ・journal を収集 -> alp / pt-query-digest -> log/<RUN_ID>/ に回収
+```
+
+Ruby のどこが重いかを flamegraph で見たい回だけ、`RBSPY=1` を付ける。
+
+```bash
+make prepare-bench RBSPY=1   # 上に加えて rbspy を puma に仕掛ける。after-bench は同じでよい(動いていれば止めて回収する)
 ```
 
 `make snapshot` はファイルに残さず標準出力に出すだけ。`top` の CPU 内訳(`us` / `sy` / `wa`)でどの層が詰まっているか、`ss -s` の `timewait` が多ければ接続の使い回し不足、を見る。`HOST=10.97.0.13` で 1 台に絞れる。
@@ -162,16 +168,15 @@ make after-bench    # rbspy 停止 -> ログ・journal を収集 -> alp / pt-que
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `alp-result.txt`                                                              | nginx アクセスログの集計(エンドポイント別の件数・合計時間) |
 | `ptqd-result.txt`                                                             | MySQL スロークエリの集計                                   |
-| `rbspy-isuride-ruby.svg`                                                      | Ruby アプリの flamegraph(ブラウザで開く)                   |
+| `rbspy-isuride-ruby.svg`                                                      | Ruby アプリの flamegraph(ブラウザで開く)。`RBSPY=1` の回のみ |
 | `journal-app.log`                                                             | アプリの標準出力・標準エラー(例外のバックトレースはここ)   |
 | `journal-nginx.log` / `journal-mysql.log`                                     | nginx / MySQL の journal                                   |
 | `nginx-access.log` / `nginx-error.log` / `mysql-slow.log` / `mysql-error.log` | 生ログ                                                     |
 
-スコア計測だけしたいときは rbspy を外す(プロファイラのオーバーヘッドをなくす)。
-
-```bash
-make prepare-bench RBSPY_UNITS=
-```
+rbspy は既定でオフ。プロファイラは対象プロセスと同じサーバーで動かすしかなく、サンプリングのぶんベンチが遅くなるので、
+alp やスロークエリで「アプリ側が重い」と分かった回だけ `RBSPY=1` で有効にする。
+既定のオプションはプロセスを止めない `--nonblocking` と毎秒 50 サンプルにしてあり、精度より負荷の低さを優先している。
+もっと細かく見たいときは `make prepare-bench RBSPY=1 RBSPY_OPTS="--rate 99 --subprocesses"` のように上書きできる。
 
 ### アプリのコードを直した
 
@@ -250,13 +255,13 @@ make install-memcached   # サーバーに memcached を入れて起動(デフ�
 - **nginx**: `conf/nginx/nginx.conf` の `access_log off;` にする。
 - **Sinatra のリクエストログ**: [webapp/ruby/lib/isuride/base_handler.rb](webapp/ruby/lib/isuride/base_handler.rb) の `enable :logging` を `disable :logging` にする。1 リクエストごとに標準エラーへ 1 行書いていて、journal への書き込みがそのままコストになる。
 - **デバッグ出力**: 当日足した `puts` / `pp` / `logger.info` を消す。
-- **rbspy**: 最後のベンチは `RBSPY_UNITS=` を付けて回す。
+- **rbspy**: 既定でオフなので、`RBSPY=1` を付けずに回せばよい。
 
 反映と確認の手順:
 
 ```bash
-make release RBSPY_UNITS=            # 上の変更を push して deploy
-make prepare-bench RBSPY_UNITS=      # 設定反映 + 再起動 + rbspy なし
+make release                         # 上の変更を push して deploy
+make prepare-bench                   # 設定反映 + 再起動 (rbspy は既定でオフ)
 # 最後のベンチを回す
 make status                          # 全サービスが active なこと
 ```
@@ -269,7 +274,9 @@ make status                          # 全サービスが active なこと
 
 | 変数          | 用途                                        | 例                                                                            |
 | ------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
-| `RBSPY_UNITS` | rbspy を仕掛けるユニット。空でスキップ      | `RBSPY_UNITS=` / `RBSPY_UNITS="isuride-ruby.service isuride-matcher.service"` |
+| `RBSPY`       | `1` で rbspy を `RBSPY_DEFAULT_UNITS` に仕掛ける(既定はオフ) | `RBSPY=1`                                                    |
+| `RBSPY_UNITS` | rbspy を仕掛けるユニットを直接指定(`RBSPY` より優先) | `RBSPY_UNITS="isuride-ruby.service isuride-matcher.service"`         |
+| `RBSPY_OPTS`  | rbspy のオプション                          | `RBSPY_OPTS="--rate 99 --subprocesses"`(既定は `--rate 50 --subprocesses --nonblocking`) |
 | `SINCE`       | journal の取得開始時刻                      | `SINCE=-10min` / `SINCE="2026-10-30 12:00:00"`                                |
 | `HOST`        | `ssh` / `logs` / `install-memcached` の対象 | `HOST=10.97.0.13`                                                             |
 | `FORCE`       | deploy でサーバー側の変更を破棄             | `FORCE=1`                                                                     |

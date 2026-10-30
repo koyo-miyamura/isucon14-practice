@@ -8,7 +8,7 @@
 #   状況確認:        make status / make logs SINCE=-10min / make ssh HOST=10.97.0.12
 #
 # 下の設定はすべて環境変数で上書きできる。make の引数で渡せばそのまま届く。例:
-#   make prepare-bench APP_HOSTS="10.97.0.12 10.97.0.14" RBSPY_UNITS=
+#   make prepare-bench APP_HOSTS="10.97.0.12 10.97.0.14" RBSPY=1
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -23,8 +23,9 @@ read -ra DB_HOSTS    <<<"${DB_HOSTS:-10.97.0.11}"     # [当日] MySQL が動く
 APP_UNITS=${APP_UNITS:-isuride-ruby.service isuride-matcher.service}  # [当日] systemctl list-units | grep -i isu で確認
 NGINX_UNITS=${NGINX_UNITS:-nginx.service}
 DB_UNITS=${DB_UNITS:-mysql.service}                   # [当日] mariadb.service の年もある
-# スコア計測の回は RBSPY_UNITS= (空) にすると rbspy をスキップする
-RBSPY_UNITS=${RBSPY_UNITS-isuride-ruby.service}       # [当日] APP_UNITS のうち puma のユニットだけ
+# rbspy はベンチを遅くするので、既定では動かさない。make prepare-bench RBSPY=1 で RBSPY_DEFAULT_UNITS に仕掛ける
+RBSPY_DEFAULT_UNITS=${RBSPY_DEFAULT_UNITS:-isuride-ruby.service}  # [当日] APP_UNITS のうち puma のユニットだけ
+RBSPY_UNITS=${RBSPY_UNITS-${RBSPY:+$RBSPY_DEFAULT_UNITS}}
 MYSQL_LOGS=${MYSQL_LOGS:-/var/log/mysql/slow.log /var/log/mysql/error.log}  # [当日] slow.log は conf/mysqld.cnf の slow_query_log_file と合わせる
 NGINX_LOGS=${NGINX_LOGS:-/var/log/nginx/access.log /var/log/nginx/error.log}
 # alp で同じエンドポイントとして束ねる正規表現。パスパラメータを含む URL を webapp/openapi.yaml や routes から拾う
@@ -50,8 +51,9 @@ RUBY_BIN=${RUBY_BIN:-}
 ALL_UNITS="$APP_UNITS $NGINX_UNITS $DB_UNITS"
 
 # ---- プロファイル / 解析 (普段は触らない) -----------------------------------------
-# puma が cluster mode だと worker は fork されるので --subprocesses が必須
-RBSPY_OPTS=${RBSPY_OPTS:---rate 99 --subprocesses}
+# puma が cluster mode だと worker は fork されるので --subprocesses が必須。
+# --nonblocking はサンプル時にプロセスを止めないのでベンチへの影響が小さい (精度は少し落ちる)。rate も数分のベンチには 50 で十分
+RBSPY_OPTS=${RBSPY_OPTS:---rate 50 --subprocesses --nonblocking}
 RBSPY_VERSION=${RBSPY_VERSION:-0.55.0}
 ALP_VERSION=${ALP_VERSION:-1.0.22}
 
@@ -335,9 +337,9 @@ cmd_new_run() { ## 新しい RUN_ID を発行し、サーバー側の現在時�
   echo "RUN_ID=$RUN_ID SINCE=$SINCE"
 }
 
-cmd_rbspy_start() { ## APP_HOSTS 上で RBSPY_UNITS に rbspy をバックグラウンドで仕掛ける
+cmd_rbspy_start() { ## APP_HOSTS 上で rbspy をバックグラウンドで仕掛ける (RBSPY=1 のときだけ。既定はスキップ)
   require_run
-  if [ -z "$RBSPY_UNITS" ]; then echo "RBSPY_UNITS is empty, skipping rbspy"; return; fi
+  if [ -z "$RBSPY_UNITS" ]; then echo "rbspy: skipped (pass RBSPY=1 to profile $RBSPY_DEFAULT_UNITS)"; return; fi
   # --duration は使わない。ベンチ開始は手動で時間が読めないので、after-bench の SIGINT で止める
   each "${APP_HOSTS[*]}" UNITS="$RBSPY_UNITS" RBSPY_OPTS="$RBSPY_OPTS" <<'EOF'
 mkdir -p "$LOG"
@@ -373,7 +375,7 @@ ls -l "$LOG"/rbspy-* 2>/dev/null || echo "no rbspy output on $(hostname)"
 EOF
 }
 
-cmd_prepare_bench() { ## 設定反映 -> 全再起動 -> ログ削除 -> rbspy 開始。このあとベンチを回す
+cmd_prepare_bench() { ## 設定反映 -> 全再起動 -> ログ削除 -> (RBSPY=1 なら rbspy 開始)。このあとベンチを回す
   cmd_new_run
   cmd_set_conf
   cmd_restart
@@ -503,10 +505,10 @@ cmd_help() { ## コマンド一覧と現在の設定を表示する
     | awk -F'\t' '{ gsub("_", "-", $1); printf "  \033[36m%-18s\033[0m %s\n", $1, $2 }'
   echo
   echo "  [当日] APP_HOSTS=${APP_HOSTS[*]}  NGINX_HOSTS=${NGINX_HOSTS[*]}  DB_HOSTS=${DB_HOSTS[*]}"
-  echo "  [当日] APP_UNITS=$APP_UNITS  DB_UNITS=$DB_UNITS  RBSPY_UNITS=$RBSPY_UNITS"
+  echo "  [当日] APP_UNITS=$APP_UNITS  DB_UNITS=$DB_UNITS  RBSPY_DEFAULT_UNITS=$RBSPY_DEFAULT_UNITS"
   echo "  [当日] ALP_MATCH=$ALP_MATCH"
   echo "  [当日] MYSQL_LOGS=$MYSQL_LOGS  APP_DIR=$APP_DIR"
-  echo "  RUN_ID=$RUN_ID  SINCE=$SINCE"
+  echo "  RUN_ID=$RUN_ID  SINCE=$SINCE  RBSPY_UNITS=${RBSPY_UNITS:-(off; pass RBSPY=1)}"
 }
 
 # メイン処理
