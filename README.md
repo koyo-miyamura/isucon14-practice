@@ -6,6 +6,29 @@ ISUCON14 の練習用リポジトリ。サーバー操作は手元の mac から
 - 入口: [Makefile](Makefile)(`make <TAB>` で補完が効く)
 - 処理本体: [isu.sh](isu.sh)
 
+## 当日書き換える箇所
+
+競技ごとに変わる値は [isu.sh](isu.sh) 先頭の `[当日]` と書かれたブロックに集めてある。`grep -n '\[当日\]' isu.sh` で全部出る。
+書き換えたら `make ping` で全サーバーにつながることと、`make help` に出る値が正しいことを確認する。
+
+| 変数 | 何を書くか | 調べ方 |
+| --- | --- | --- |
+| `APP_HOSTS` / `NGINX_HOSTS` / `DB_HOSTS` | 役割ごとのサーバー IP。最初は全部 1 台目で、分離したら書き換える | 競技ポータルのサーバー一覧 |
+| `APP_UNITS` | アプリの systemd ユニット名(複数あれば全部) | サーバーで `systemctl list-units --type=service \| grep -i isu` |
+| `DB_UNITS` | `mysql.service` か `mariadb.service` か | 同上で `mysql` / `mariadb` を探す |
+| `RBSPY_UNITS` | `APP_UNITS` のうち puma(Ruby アプリ本体)のもの | `systemctl cat <unit>` の `ExecStart` に puma があるもの |
+| `MYSQL_LOGS` | slow log / error log のパス | `conf/mysqld.cnf` に書く `slow_query_log_file` と一致させる |
+| `ALP_MATCH` | パスパラメータを含む URL を束ねる正規表現(カンマ区切り) | [webapp/openapi.yaml](webapp/openapi.yaml) や routes の `:id` を含むパスを全部 |
+| `APP_DIR` | `bundle install` するディレクトリ(リポジトリからの相対) | `systemctl cat <unit>` の `WorkingDirectory` |
+
+このブロックの外にも 1 箇所だけ `[当日]` がある。`make mysql` が使う `env.sh` の変数名(`ISUCON_DB_*`)は年によって違うので、`make mysql` が失敗したら [isu.sh](isu.sh) の `cmd_mysql` を直す。
+
+それ以外で当日直すもの:
+
+- [Makefile](Makefile): 触らなくてよい(コマンドを足したときだけ)。
+- この README 内の GitHub リポジトリ名(`koyo-miyamura/isucon2026`)と、「初回セットアップ 1.」の git config。
+- 計測用の設定(スロークエリログ / LTSV)は毎回手で書く。手順は「初回セットアップ 5.」。
+
 ## 初回セットアップ
 
 最初の 1 回だけ。サーバーを git 管理下に置くところまでは手作業で行う(環境が想定と違う可能性があるので、目で見ながら進める)。
@@ -48,7 +71,7 @@ cd isucon2026
 # このリポジトリから Makefile / isu.sh / README.md / docs/ をコピーする
 ```
 
-[isu.sh](isu.sh) 先頭の `APP_HOSTS` / `NGINX_HOSTS` / `DB_HOSTS` を今回のサーバー IP に合わせてから commit して push する。
+[isu.sh](isu.sh) 先頭の `[当日]` ブロック(「当日書き換える箇所」参照)を今回の環境に合わせてから commit して push する。
 
 ### 3. 2 台目以降のサーバー
 

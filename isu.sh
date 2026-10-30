@@ -12,11 +12,28 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# ---- サーバー ------------------------------------------------------------------
+# ==============================================================================
+# [当日] 競技ごとに書き換える設定。ここだけ直せば他は触らなくてよい想定。
+#        それぞれの調べ方は README「当日書き換える箇所」を参照。
+#        書き換えたら make ping で全部つながること、make help で値を確認する。
+# ==============================================================================
+read -ra APP_HOSTS   <<<"${APP_HOSTS:-10.97.0.12}"    # [当日] アプリ (puma) を動かすサーバー。複数可 (空白区切り)
+read -ra NGINX_HOSTS <<<"${NGINX_HOSTS:-10.97.0.12}"  # [当日] nginx が動くサーバー (alp の対象)
+read -ra DB_HOSTS    <<<"${DB_HOSTS:-10.97.0.13}"     # [当日] MySQL が動くサーバー (pt-query-digest の対象)
+APP_UNITS=${APP_UNITS:-isuride-ruby.service isuride-matcher.service}  # [当日] systemctl list-units | grep -i isu で確認
+NGINX_UNITS=${NGINX_UNITS:-nginx.service}
+DB_UNITS=${DB_UNITS:-mysql.service}                   # [当日] mariadb.service の年もある
+# スコア計測の回は RBSPY_UNITS= (空) にすると rbspy をスキップする
+RBSPY_UNITS=${RBSPY_UNITS-isuride-ruby.service}       # [当日] APP_UNITS のうち puma のユニットだけ
+MYSQL_LOGS=${MYSQL_LOGS:-/var/log/mysql/slow.log /var/log/mysql/error.log}  # [当日] slow.log は conf/mysqld.cnf の slow_query_log_file と合わせる
+NGINX_LOGS=${NGINX_LOGS:-/var/log/nginx/access.log /var/log/nginx/error.log}
+# alp で同じエンドポイントとして束ねる正規表現。パスパラメータを含む URL を webapp/openapi.yaml や routes から拾う
+ALP_MATCH=${ALP_MATCH:-/rides/.*/evaluation,/rides/.*/status,/assets/.*,/images/.*}  # [当日] 必ず書き換える
+APP_DIR=${APP_DIR:-webapp/ruby}                       # [当日] bundle install するディレクトリ (REMOTE_REPO からの相対)
+# ==============================================================================
+
+# ---- サーバー (普段は触らない) ---------------------------------------------------
 SSH_USER=${SSH_USER:-isucon}
-read -ra APP_HOSTS   <<<"${APP_HOSTS:-10.97.0.12}"
-read -ra NGINX_HOSTS <<<"${NGINX_HOSTS:-10.97.0.12}"
-read -ra DB_HOSTS    <<<"${DB_HOSTS:-10.97.0.13}"
 HOSTS=($(printf '%s\n' "${APP_HOSTS[@]}" "${NGINX_HOSTS[@]}" "${DB_HOSTS[@]}" | sort -u))
 # BatchMode=yes: 鍵認証が通らないときにパスワード入力で止まらず即失敗させる
 # ForwardAgent=yes: deploy 時の git fetch でサーバーに鍵を置かずに手元の GitHub 用鍵を使う
@@ -30,22 +47,13 @@ LOCAL_LOG=${LOCAL_LOG:-log}
 GIT_BRANCH=${GIT_BRANCH:-main}
 # 非対話 ssh では ~/.bashrc の PATH が効かず bundle が見つからないことがあるので、その場合に PATH へ前置する
 RUBY_BIN=${RUBY_BIN:-}
-
-APP_UNITS=${APP_UNITS:-isuride-ruby.service isuride-matcher.service}
-NGINX_UNITS=${NGINX_UNITS:-nginx.service}
-DB_UNITS=${DB_UNITS:-mysql.service}
 ALL_UNITS="$APP_UNITS $NGINX_UNITS $DB_UNITS"
-NGINX_LOGS=${NGINX_LOGS:-/var/log/nginx/access.log /var/log/nginx/error.log}
-MYSQL_LOGS=${MYSQL_LOGS:-/var/log/mysql/slow.log /var/log/mysql/error.log}
 
-# ---- プロファイル / 解析 -------------------------------------------------------
-# スコア計測の回は RBSPY_UNITS= (空) にすると rbspy をスキップする
-RBSPY_UNITS=${RBSPY_UNITS-isuride-ruby.service}
+# ---- プロファイル / 解析 (普段は触らない) -----------------------------------------
 # puma が cluster mode だと worker は fork されるので --subprocesses が必須
 RBSPY_OPTS=${RBSPY_OPTS:---rate 99 --subprocesses}
 RBSPY_VERSION=${RBSPY_VERSION:-0.55.0}
 ALP_VERSION=${ALP_VERSION:-1.0.22}
-ALP_MATCH=${ALP_MATCH:-/rides/.*/evaluation,/rides/.*/status,/assets/.*,/images/.*}
 
 # ---- ベンチ 1 回分の識別子: new-run が書き、after-bench が読む ----------------------
 RUN_ID=${RUN_ID:-$(cat "$LOCAL_LOG/.current_run" 2>/dev/null || true)}
@@ -237,7 +245,7 @@ EOF
 }
 
 # puma の workers / threads / bind は systemd ユニットの ExecStart で渡されているので、
-# puma の設定 = APP_UNITS のユニットファイルとして扱う。puma.rb を使う場合はリポジトリ内の webapp/ruby/ に置き、
+# puma の設定 = APP_UNITS のユニットファイルとして扱う。puma.rb を使う場合はリポジトリ内の APP_DIR に置き、
 # ExecStart を `puma -C puma.rb` に変えて deploy で配る。
 cmd_get_pumaconf() { ## puma を起動する systemd ユニット (APP_UNITS) を conf/systemd/ に取得する
   local h=${APP_HOSTS[0]} u
@@ -303,6 +311,7 @@ cmd_ssh() { ## サーバーにログインする。make ssh HOST=...
 cmd_mysql() { ## DB サーバーの MySQL に入る。make mysql [HOST=...] [Q="SELECT ..."] (Q を付けると 1 回実行して戻る)
   local h=${HOST:-${DB_HOSTS[0]}} tty=-t
   # 認証情報はサーバー上の env.sh から読む。パスワードは引数でなく MYSQL_PWD で渡し、ps に出さない
+  # [当日] env.sh の変数名 (ISUCON_DB_*) が年によって違うので、make mysql が失敗したらここを合わせる
   local remote_cmd='set -a; . "$REPO/env.sh"; set +a; export MYSQL_PWD=$ISUCON_DB_PASSWORD; exec mysql -h 127.0.0.1 -P "$ISUCON_DB_PORT" -u "$ISUCON_DB_USER" "$ISUCON_DB_NAME"'
   if [ -n "${Q:-}" ]; then
     remote_cmd+=" -e $(printf '%q' "$Q")"
@@ -448,7 +457,7 @@ cmd_deploy() { ## APP_HOSTS で git reset --hard origin/GIT_BRANCH + bundle inst
   for h in "${APP_HOSTS[@]}"; do
     log "$h"
     # サーバー上で直接いじった変更を reset --hard で飛ばす事故を防ぐため、dirty なら拒否する
-    remote "$h" BRANCH="$GIT_BRANCH" FORCE="${FORCE:-}" RUBY_BIN="$RUBY_BIN" <<'EOF'
+    remote "$h" BRANCH="$GIT_BRANCH" FORCE="${FORCE:-}" RUBY_BIN="$RUBY_BIN" APP_DIR="$APP_DIR" <<'EOF'
 cd "$REPO"
 [ -z "$RUBY_BIN" ] || export PATH="$RUBY_BIN:$PATH"
 if [ -z "$FORCE" ] && [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -459,7 +468,7 @@ fi
 git fetch --quiet origin "$BRANCH"
 git reset --hard "origin/$BRANCH"
 command -v bundle >/dev/null || { echo "!! bundle not in PATH; pass RUBY_BIN=/path/to/ruby/bin" >&2; exit 1; }
-(cd webapp/ruby && bundle install --quiet)
+(cd "$APP_DIR" && bundle install --quiet)
 echo "checked out $(git rev-parse --short HEAD) on $(hostname)"
 EOF
     restart_units "$h" "$APP_UNITS"
@@ -486,8 +495,11 @@ cmd_help() { ## コマンド一覧と現在の設定を表示する
     | sed -E 's/^cmd_([a-z_]+)\(\) *\{ *## (.*)$/\1\t\2/' \
     | awk -F'\t' '{ gsub("_", "-", $1); printf "  \033[36m%-18s\033[0m %s\n", $1, $2 }'
   echo
-  echo "  APP_HOSTS=${APP_HOSTS[*]}  NGINX_HOSTS=${NGINX_HOSTS[*]}  DB_HOSTS=${DB_HOSTS[*]}"
-  echo "  RUN_ID=$RUN_ID  SINCE=$SINCE  RBSPY_UNITS=$RBSPY_UNITS"
+  echo "  [当日] APP_HOSTS=${APP_HOSTS[*]}  NGINX_HOSTS=${NGINX_HOSTS[*]}  DB_HOSTS=${DB_HOSTS[*]}"
+  echo "  [当日] APP_UNITS=$APP_UNITS  DB_UNITS=$DB_UNITS  RBSPY_UNITS=$RBSPY_UNITS"
+  echo "  [当日] ALP_MATCH=$ALP_MATCH"
+  echo "  [当日] MYSQL_LOGS=$MYSQL_LOGS  APP_DIR=$APP_DIR"
+  echo "  RUN_ID=$RUN_ID  SINCE=$SINCE"
 }
 
 # メイン処理
