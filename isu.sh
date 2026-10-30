@@ -45,6 +45,8 @@ SSH_OPTS=${SSH_OPTS:--o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecki
 REMOTE_REPO=${REMOTE_REPO:-/home/$SSH_USER}
 REMOTE_LOG=${REMOTE_LOG:-$REMOTE_REPO/log}
 LOCAL_LOG=${LOCAL_LOG:-log}
+# fetch-logs で手元に持ってこないファイル (空白区切り)。slow.log は数百 MB になり、集計は pt-query-digest がサーバー側で済ませている
+FETCH_EXCLUDE=${FETCH_EXCLUDE-mysql-slow.log}
 GIT_BRANCH=${GIT_BRANCH:-main}
 # 非対話 ssh では ~/.bashrc の PATH が効かず bundle が見つからないことがあるので、その場合に PATH へ前置する
 RUBY_BIN=${RUBY_BIN:-}
@@ -433,14 +435,15 @@ head -n 5 "$LOG/ptqd-result.txt"
 EOF
 }
 
-cmd_fetch_logs() { ## 各ホストの log/RUN_ID を手元の log/RUN_ID/<host>/ に rsync で回収する
+cmd_fetch_logs() { ## 各ホストの log/RUN_ID を手元の log/RUN_ID/<host>/ に rsync で回収する (FETCH_EXCLUDE のファイルは除く)
   require_run
-  local h
+  local h x excludes=()
+  for x in $FETCH_EXCLUDE; do excludes+=(--exclude "$x"); done
   for h in "${HOSTS[@]}"; do
     log "$h"
     mkdir -p "$LOCAL_LOG/$RUN_ID/$h"
     # shellcheck disable=SC2086
-    rsync -rtz -e "ssh.exe $SSH_OPTS" "$SSH_USER@$h:$REMOTE_LOG/$RUN_ID/" "$LOCAL_LOG/$RUN_ID/$h/"
+    rsync -rtz -e "ssh.exe $SSH_OPTS" "${excludes[@]}" "$SSH_USER@$h:$REMOTE_LOG/$RUN_ID/" "$LOCAL_LOG/$RUN_ID/$h/"
   done
 }
 

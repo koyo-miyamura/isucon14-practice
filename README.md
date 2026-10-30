@@ -162,7 +162,8 @@ make prepare-bench RBSPY=1   # 上に加えて rbspy を puma に仕掛ける。
 
 結果は `log/<RUN_ID>/<サーバーIP>/` に入る。
 このうち `alp-result.txt` / `ptqd-result.txt` / `rbspy-*.svg` は commit 対象で、`make push`(`git add .`)でそのままチームに共有される。
-生ログ(`*-access.log` / `*-slow.log` / `journal-*.log` / `*.raw.gz`)は 1 回で数十 MB になるので [.gitignore](.gitignore) で除外している。手元にだけ残る。
+生ログ(`*-access.log` / `journal-*.log` / `*.raw.gz`)は 1 回で数十 MB になるので [.gitignore](.gitignore) で除外している。手元にだけ残る。
+`mysql-slow.log` はさらに大きい(数百 MB)ので手元にも持ってこない。集計の `ptqd-result.txt` だけ回収し、生ログはサーバーの `/home/isucon/log/<RUN_ID>/` に残る。
 
 | ファイル                                                                      | 中身                                                       |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -171,7 +172,8 @@ make prepare-bench RBSPY=1   # 上に加えて rbspy を puma に仕掛ける。
 | `rbspy-isuride-ruby.svg`                                                      | Ruby アプリの flamegraph(ブラウザで開く)。`RBSPY=1` の回のみ |
 | `journal-app.log`                                                             | アプリの標準出力・標準エラー(例外のバックトレースはここ)   |
 | `journal-nginx.log` / `journal-mysql.log`                                     | nginx / MySQL の journal                                   |
-| `nginx-access.log` / `nginx-error.log` / `mysql-slow.log` / `mysql-error.log` | 生ログ                                                     |
+| `nginx-access.log` / `nginx-error.log` / `mysql-error.log`                    | 生ログ                                                     |
+| (`mysql-slow.log`)                                                            | サーバーにのみ残る。必要なら `make fetch-logs FETCH_EXCLUDE=` |
 
 rbspy は既定でオフ。プロファイラは対象プロセスと同じサーバーで動かすしかなく、サンプリングのぶんベンチが遅くなるので、
 alp やスロークエリで「アプリ側が重い」と分かった回だけ `RBSPY=1` で有効にする。
@@ -282,6 +284,7 @@ make status                          # 全サービスが active なこと
 | `FORCE`       | deploy でサーバー側の変更を破棄             | `FORCE=1`                                                                     |
 | `RUBY_BIN`    | bundle が見つからないときの Ruby の bin     | `RUBY_BIN=/home/isucon/local/ruby/bin`                                        |
 | `RUN_ID`      | after-bench の対象を明示(通常は不要)        | `RUN_ID=20261030_153012`                                                      |
+| `FETCH_EXCLUDE` | fetch-logs で持ってこないファイル(既定 `mysql-slow.log`) | `FETCH_EXCLUDE=` (全部持ってくる) / `FETCH_EXCLUDE="mysql-slow.log nginx-access.log"` |
 
 ## コマンドを追加するとき
 
