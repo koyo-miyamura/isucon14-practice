@@ -69,7 +69,7 @@ git reset --hard origin/main         # 1 台目の内容で上書きする。git
 ```bash
 make ping           # 全サーバーへの ssh / sudo / ruby / ツール / リポジトリ位置を確認
 make install-tools  # alp / pt-query-digest / rbspy をサーバーに入れる
-make init           # nginx / mysql の設定ファイルをサーバーから conf/ に取得
+make init           # nginx / mysql / puma(systemd ユニット)の設定ファイルをサーバーから conf/ に取得
 ```
 
 `make ping` で `bundle: not in PATH` と出たら、以後 `make deploy RUBY_BIN=/home/isucon/local/ruby/bin` のように Ruby の bin ディレクトリを渡す。
@@ -160,17 +160,21 @@ make release        # 手元の変更を commit & push し、サーバーで git
 commit は自分でやる派なら、push 後に `make deploy` だけでよい。
 サーバー上で直接ファイルをいじってあると deploy は拒否される。捨ててよければ `make deploy FORCE=1`。
 
-### nginx や MySQL の設定を直した
+### nginx や MySQL や puma の設定を直した
 
-`conf/nginx/` や `conf/mysqld.cnf` を編集してから次を実行する。
+`conf/nginx/`、`conf/mysqld.cnf`、`conf/systemd/*.service` を編集してから次を実行する。
 
 ```bash
-make set-conf       # サーバーへ反映(nginx -t まで。再起動はしない)
+make set-conf       # サーバーへ反映(nginx -t / systemd-analyze verify / daemon-reload まで。再起動はしない)
 make restart        # mysql -> app -> nginx の順に再起動し、起動を確認
 ```
 
 `make prepare-bench` にも含まれているので、ベンチ前なら個別に実行しなくてよい。
 逆にサーバー側の設定を手元に取り直したいときは `make get-conf`。
+個別にやりたいときは `make get-pumaconf` / `make set-pumaconf` のように対象を指定できる(nginxconf / mysqlconf も同様)。
+
+puma の workers / threads / bind は `conf/systemd/isuride-ruby.service` の `ExecStart` に書かれているので、そこを書き換えて `make set-conf && make restart-app` で反映する。
+設定ファイル(`puma.rb`)に寄せたい場合は [webapp/ruby/](webapp/ruby/) に置いて `ExecStart` を `puma -C puma.rb` に変え、`puma.rb` 自体は `make release` で配る。
 
 ### 様子がおかしい
 

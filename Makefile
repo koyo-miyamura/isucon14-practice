@@ -14,7 +14,7 @@
 .DEFAULT_GOAL := help
 
 TARGETS := help ping init install-tools install-memcached \
-	get-conf get-nginxconf get-mysqlconf set-conf set-nginxconf set-mysqlconf \
+	get-conf get-nginxconf get-mysqlconf get-pumaconf set-conf set-nginxconf set-mysqlconf set-pumaconf \
 	restart restart-app restart-nginx restart-mysql cleanlog status logs ssh mysql \
 	new-run rbspy-start rbspy-stop prepare-bench after-bench \
 	collect-logs analyze fetch-logs show-result \
