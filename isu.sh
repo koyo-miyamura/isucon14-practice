@@ -384,7 +384,7 @@ cmd_prepare_bench() { ## 設定反映 -> 全再起動 -> ログ削除 -> rbspy �
   echo ">>> run the benchmarker, then: make after-bench"
 }
 
-cmd_after_bench() { ## rbspy 停止 -> journal/ログ/システム情報の収集 -> alp + pt-query-digest -> log/RUN_ID/ に回収
+cmd_after_bench() { ## rbspy 停止 -> journal/ログの収集 -> alp + pt-query-digest -> log/RUN_ID/ に回収
   require_run
   cmd_rbspy_stop
   cmd_collect_logs
@@ -393,23 +393,28 @@ cmd_after_bench() { ## rbspy 停止 -> journal/ログ/システム情報の収�
   cmd_show_result
 }
 
-cmd_collect_logs() { ## SINCE 以降の journal (標準出力・標準エラー)、生ログ、システム情報を集める
+cmd_collect_logs() { ## SINCE 以降の journal (標準出力・標準エラー) と生ログを集める
   require_run
   collect_logs "${APP_HOSTS[*]}"   app   "$APP_UNITS"   ""
   collect_logs "${NGINX_HOSTS[*]}" nginx "$NGINX_UNITS" "$NGINX_LOGS"
   collect_logs "${DB_HOSTS[*]}"    mysql "$DB_UNITS"    "$MYSQL_LOGS"
-  each "${HOSTS[*]}" ALL_UNITS="$ALL_UNITS" <<'EOF'
+  # sudo cat で作ったファイルは root 所有になり、fetch-logs の rsync で読めないので戻す
+  each "${HOSTS[*]}" <<'EOF'
 mkdir -p "$LOG"
-{
-  echo "## $(hostname) $(date '+%F %T')"
-  echo; echo "## uptime";           uptime
-  echo; echo "## free -m";          free -m
-  echo; echo "## df -h /";          df -h /
-  echo; echo "## top -bn1";         top -bn1 | head -25
-  echo; echo "## ss -s";            ss -s
-  echo; echo "## systemctl status"; systemctl status $ALL_UNITS --no-pager 2>&1 || true
-} > "$LOG/system.txt"
 sudo chown -R "$(id -un):" "$LOG"
+EOF
+}
+
+# top や ss はその瞬間の値なので、ベンチ終了後に取っても意味がない。ベンチ中に別ターミナルから叩く
+cmd_snapshot() { ## ベンチ中に叩く。CPU / メモリ / TIME_WAIT / ユニット状態を標準出力に出す。make snapshot HOST=...
+  each "${*:-${HOST:-${HOSTS[*]}}}" ALL_UNITS="$ALL_UNITS" <<'EOF'
+echo "## $(hostname) $(date '+%F %T')"
+echo; echo "## uptime";           uptime
+echo; echo "## free -m";          free -m
+echo; echo "## df -h /";          df -h /
+echo; echo "## top -bn1";         top -bn1 | head -25
+echo; echo "## ss -s";            ss -s
+echo; echo "## systemctl status"; systemctl status $ALL_UNITS --no-pager 2>&1 || true
 EOF
 }
 

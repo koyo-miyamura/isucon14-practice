@@ -17,7 +17,7 @@ TARGETS := help ping init install-tools install-memcached \
 	get-conf get-nginxconf get-mysqlconf get-appconf set-conf set-nginxconf set-mysqlconf set-appconf \
 	restart restart-app restart-nginx restart-mysql cleanlog status logs ssh mysql \
 	new-run rbspy-start rbspy-stop prepare-bench after-bench \
-	collect-logs analyze fetch-logs show-result \
+	snapshot collect-logs analyze fetch-logs show-result \
 	deploy push release
 
 .PHONY: $(TARGETS)

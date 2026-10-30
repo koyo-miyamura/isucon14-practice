@@ -148,8 +148,11 @@ make restart
 ```bash
 make prepare-bench  # 設定反映 -> 全サービス再起動 -> ログ削除 -> rbspy 開始
 # ここでベンチを実行する
-make after-bench    # rbspy 停止 -> ログ・journal・システム情報を収集 -> alp / pt-query-digest -> log/<RUN_ID>/ に回収
+make snapshot       # (任意) ベンチ中に別ターミナルで。CPU / メモリ / TIME_WAIT / ユニット状態を全サーバー分表示
+make after-bench    # rbspy 停止 -> ログ・journal を収集 -> alp / pt-query-digest -> log/<RUN_ID>/ に回収
 ```
+
+`make snapshot` はファイルに残さず標準出力に出すだけ。`top` の CPU 内訳(`us` / `sy` / `wa`)でどの層が詰まっているか、`ss -s` の `timewait` が多ければ接続の使い回し不足、を見る。`HOST=10.97.0.13` で 1 台に絞れる。
 
 結果は `log/<RUN_ID>/<サーバーIP>/` に入る。
 
@@ -161,7 +164,6 @@ make after-bench    # rbspy 停止 -> ログ・journal・システム情報を�
 | `journal-app.log`                                                             | アプリの標準出力・標準エラー(例外のバックトレースはここ)       |
 | `journal-nginx.log` / `journal-mysql.log`                                     | nginx / MySQL の journal                                       |
 | `nginx-access.log` / `nginx-error.log` / `mysql-slow.log` / `mysql-error.log` | 生ログ                                                         |
-| `system.txt`                                                                  | uptime / free / top / ss / systemctl status のスナップショット |
 
 スコア計測だけしたいときは rbspy を外す(プロファイラのオーバーヘッドをなくす)。
 
