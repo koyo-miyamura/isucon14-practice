@@ -5,7 +5,6 @@ ISUCON14 の練習用リポジトリ。サーバー操作は手元の mac から
 
 - 入口: [Makefile](Makefile)(`make <TAB>` で補完が効く)
 - 処理本体: [isu.sh](isu.sh)
-- 設計メモ: [docs/makefile-remote-plan.md](docs/makefile-remote-plan.md)
 
 ## 初回セットアップ
 
