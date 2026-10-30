@@ -37,11 +37,6 @@ ISUCON14 の練習用リポジトリ。サーバー操作は手元の mac から
 
 - サーバーへの ssh 公開鍵は競技環境側で登録済み。`ssh isucon@<IP>` で入れることだけ確認する。
 - GitHub の鍵が ssh-agent に入っていることを確認する(`ssh-add -l`)。サーバーから GitHub へ push / fetch するときは `ssh -A` のエージェント転送で手元の鍵を使うので、サーバー側に鍵を置く必要はない。
-- GitHub に空のプライベートリポジトリを作る。
-
-```bash
-gh repo create koyo-miyamura/isucon2026 --private
-```
 
 ### 1. 1 台目のサーバーをリポジトリにする(手作業)
 
@@ -68,7 +63,7 @@ git push -u origin main
 ```bash
 git clone git@github.com:koyo-miyamura/isucon2026
 cd isucon2026
-# このリポジトリから Makefile / isu.sh / README.md / docs/ をコピーする
+# このリポジトリから Makefile / isu.sh / README.md をコピーする
 ```
 
 [isu.sh](isu.sh) 先頭の `[当日]` ブロック(「当日書き換える箇所」参照)を今回の環境に合わせてから commit して push する。
@@ -158,15 +153,15 @@ make after-bench    # rbspy 停止 -> ログ・journal・システム情報を�
 
 結果は `log/<RUN_ID>/<サーバーIP>/` に入る。
 
-| ファイル | 中身 |
-| --- | --- |
-| `alp-result.txt` | nginx アクセスログの集計(エンドポイント別の件数・合計時間) |
-| `ptqd-result.txt` | MySQL スロークエリの集計 |
-| `rbspy-isuride-ruby.svg` | Ruby アプリの flamegraph(ブラウザで開く) |
-| `journal-app.log` | アプリの標準出力・標準エラー(例外のバックトレースはここ) |
-| `journal-nginx.log` / `journal-mysql.log` | nginx / MySQL の journal |
-| `nginx-access.log` / `nginx-error.log` / `mysql-slow.log` / `mysql-error.log` | 生ログ |
-| `system.txt` | uptime / free / top / ss / systemctl status のスナップショット |
+| ファイル                                                                      | 中身                                                           |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `alp-result.txt`                                                              | nginx アクセスログの集計(エンドポイント別の件数・合計時間)     |
+| `ptqd-result.txt`                                                             | MySQL スロークエリの集計                                       |
+| `rbspy-isuride-ruby.svg`                                                      | Ruby アプリの flamegraph(ブラウザで開く)                       |
+| `journal-app.log`                                                             | アプリの標準出力・標準エラー(例外のバックトレースはここ)       |
+| `journal-nginx.log` / `journal-mysql.log`                                     | nginx / MySQL の journal                                       |
+| `nginx-access.log` / `nginx-error.log` / `mysql-slow.log` / `mysql-error.log` | 生ログ                                                         |
+| `system.txt`                                                                  | uptime / free / top / ss / systemctl status のスナップショット |
 
 スコア計測だけしたいときは rbspy を外す(プロファイラのオーバーヘッドをなくす)。
 
@@ -264,14 +259,14 @@ make status                          # 全サービスが active なこと
 
 [isu.sh](isu.sh) 先頭の設定はすべて `make <コマンド> VAR=value` で一時的に上書きできる。よく使うもの:
 
-| 変数 | 用途 | 例 |
-| --- | --- | --- |
-| `RBSPY_UNITS` | rbspy を仕掛けるユニット。空でスキップ | `RBSPY_UNITS=` / `RBSPY_UNITS="isuride-ruby.service isuride-matcher.service"` |
-| `SINCE` | journal の取得開始時刻 | `SINCE=-10min` / `SINCE="2026-10-30 12:00:00"` |
-| `HOST` | `ssh` / `logs` / `install-memcached` の対象 | `HOST=10.97.0.13` |
-| `FORCE` | deploy でサーバー側の変更を破棄 | `FORCE=1` |
-| `RUBY_BIN` | bundle が見つからないときの Ruby の bin | `RUBY_BIN=/home/isucon/local/ruby/bin` |
-| `RUN_ID` | after-bench の対象を明示(通常は不要) | `RUN_ID=20261030_153012` |
+| 変数          | 用途                                        | 例                                                                            |
+| ------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
+| `RBSPY_UNITS` | rbspy を仕掛けるユニット。空でスキップ      | `RBSPY_UNITS=` / `RBSPY_UNITS="isuride-ruby.service isuride-matcher.service"` |
+| `SINCE`       | journal の取得開始時刻                      | `SINCE=-10min` / `SINCE="2026-10-30 12:00:00"`                                |
+| `HOST`        | `ssh` / `logs` / `install-memcached` の対象 | `HOST=10.97.0.13`                                                             |
+| `FORCE`       | deploy でサーバー側の変更を破棄             | `FORCE=1`                                                                     |
+| `RUBY_BIN`    | bundle が見つからないときの Ruby の bin     | `RUBY_BIN=/home/isucon/local/ruby/bin`                                        |
+| `RUN_ID`      | after-bench の対象を明示(通常は不要)        | `RUN_ID=20261030_153012`                                                      |
 
 ## コマンドを追加するとき
 
