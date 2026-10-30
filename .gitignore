@@ -3,5 +3,6 @@ local
 .*
 !.gitignore
 debian.cnf
-log/slow*.log
-log/nginx-access*.log\
+# bench artifacts are large; keep only the placeholder
+log/*
+!log/.gitkeep
