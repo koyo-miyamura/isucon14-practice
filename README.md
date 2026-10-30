@@ -189,6 +189,10 @@ make restart        # mysql -> app -> nginx の順に再起動し、起動を確
 
 `make prepare-bench` にも含まれているので、ベンチ前なら個別に実行しなくてよい。
 逆にサーバー側の設定を手元に取り直したいときは `make get-conf`。
+
+注意: 反映は「上書き」だけで「削除」はしない(rsync に `--delete` を付けていない)。
+手元の `conf/nginx/sites-available/` などでファイルを消しても、サーバー側には残ったまま読み込まれ続ける。
+不要なサイト定義を消したいときは `make ssh` で入って直接消すか、ファイルの中身を空にして反映する。
 個別にやりたいときは `make get-pumaconf` / `make set-pumaconf` のように対象を指定できる(nginxconf / mysqlconf も同様)。
 
 puma の workers / threads / bind は `conf/systemd/isuride-ruby.service` の `ExecStart` に書かれているので、そこを書き換えて `make set-conf && make restart-app` で反映する。

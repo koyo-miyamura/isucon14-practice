@@ -87,7 +87,9 @@ each() {
   done
 }
 
-# root 所有のファイルを扱うため、リモート側の rsync を sudo で動かす
+# root 所有のファイルを扱うため、リモート側の rsync を sudo で動かす。
+# --delete は意図的に付けていない (conf/ の取り忘れで /etc 側を消す事故を防ぐ)。
+# そのため手元で消したファイルはサーバーに残る。消したいときは make ssh で直接消すか、中身を空にする。
 # shellcheck disable=SC2086
 rsync_sudo() { rsync -rtv -e "ssh $SSH_OPTS" --rsync-path="sudo rsync" "$@"; }
 
