@@ -154,7 +154,7 @@ for u in $ALL_UNITS; do printf '%-26s %s\n' "$u" "$(systemctl is-active "$u" 2>/
 EOF
 }
 
-cmd_init() { ## ローカルにディレクトリを作り、nginx / mysql / puma の設定をサーバーから取得する
+cmd_init() { ## ローカルにディレクトリを作り、nginx / mysql / app の設定をサーバーから取得する
   mkdir -p conf/nginx/sites-available conf/systemd "$LOCAL_LOG"
   cmd_get_conf
 }
@@ -196,10 +196,10 @@ EOF
 }
 
 # ---- 設定ファイルの同期 --------------------------------------------------------
-cmd_get_conf() { ## nginx + mysql + puma の設定を conf/ に取得する
+cmd_get_conf() { ## nginx + mysql + app (systemd ユニット) の設定を conf/ に取得する
   cmd_get_nginxconf
   cmd_get_mysqlconf
-  cmd_get_pumaconf
+  cmd_get_appconf
 }
 
 cmd_get_nginxconf() {
@@ -219,7 +219,7 @@ cmd_get_mysqlconf() {
 cmd_set_conf() { ## conf/ をサーバーへ反映する (nginx -t / daemon-reload まで。再起動はしない)
   cmd_set_nginxconf
   cmd_set_mysqlconf
-  cmd_set_pumaconf
+  cmd_set_appconf
 }
 
 cmd_set_nginxconf() {
@@ -246,10 +246,10 @@ EOF
   done
 }
 
-# puma の workers / threads / bind は systemd ユニットの ExecStart で渡されているので、
-# puma の設定 = APP_UNITS のユニットファイルとして扱う。puma.rb を使う場合はリポジトリ内の APP_DIR に置き、
-# ExecStart を `puma -C puma.rb` に変えて deploy で配る。
-cmd_get_pumaconf() { ## puma を起動する systemd ユニット (APP_UNITS) を conf/systemd/ に取得する
+# アプリサーバー (puma 等) の workers / threads / bind は systemd ユニットの ExecStart で渡されているので、
+# アプリの設定 = APP_UNITS のユニットファイルとして扱う。設定ファイル (puma.rb 等) を使う場合はリポジトリ内の
+# APP_DIR に置き、ExecStart から参照させて deploy で配る。
+cmd_get_appconf() { ## アプリの systemd ユニット (APP_UNITS) を conf/systemd/ に取得する
   local h=${APP_HOSTS[0]} u
   log "$h"
   mkdir -p conf/systemd
@@ -258,10 +258,10 @@ cmd_get_pumaconf() { ## puma を起動する systemd ユニット (APP_UNITS) �
   done
 }
 
-cmd_set_pumaconf() { ## conf/systemd/ のユニットを APP_HOSTS へ反映して daemon-reload する (再起動はしない)
+cmd_set_appconf() { ## conf/systemd/ のユニットを APP_HOSTS へ反映して daemon-reload する (再起動はしない)
   local h u
   for u in $APP_UNITS; do
-    [ -f "conf/systemd/$u" ] || die "conf/systemd/$u not found: run 'make get-pumaconf' first"
+    [ -f "conf/systemd/$u" ] || die "conf/systemd/$u not found: run 'make get-appconf' first"
   done
   for h in "${APP_HOSTS[@]}"; do
     log "$h"
