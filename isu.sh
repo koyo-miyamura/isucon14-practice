@@ -113,11 +113,12 @@ done
 EOF
 }
 
-# 開いたままのログファイルを安全に空にするため、rm ではなく truncate を使う
+# 開いたままのログファイルを安全に空にするため、rm ではなく truncate を使う。
+# /var/log/mysql/ はディレクトリが 750 で一般ユーザーからは中が見えないので、存在確認も sudo で行う
 truncate_files() {
   each "$1" FILES="$2" <<'EOF'
 for f in $FILES; do
-  if [ -f "$f" ]; then sudo truncate -s0 "$f"; echo "truncated $f"; else echo "skip: $f not found"; fi
+  if sudo test -f "$f"; then sudo truncate -s0 "$f"; echo "truncated $f"; else echo "skip: $f not found"; fi
 done
 EOF
 }
@@ -130,7 +131,7 @@ mkdir -p "$LOG"
 args=""; for u in $UNITS; do args="$args -u $u"; done
 sudo journalctl $args --since "$SINCE" --no-pager -o short-iso > "$LOG/journal-$NAME.log"
 for f in $FILES; do
-  if [ -f "$f" ]; then sudo cat "$f" > "$LOG/$NAME-$(basename "$f")"; else echo "skip: $f not found"; fi
+  if sudo test -f "$f"; then sudo cat "$f" > "$LOG/$NAME-$(basename "$f")"; else echo "skip: $f not found"; fi
 done
 ls -l "$LOG"
 EOF
