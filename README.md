@@ -155,6 +155,8 @@ make after-bench    # rbspy 停止 -> ログ・journal を収集 -> alp / pt-que
 `make snapshot` はファイルに残さず標準出力に出すだけ。`top` の CPU 内訳(`us` / `sy` / `wa`)でどの層が詰まっているか、`ss -s` の `timewait` が多ければ接続の使い回し不足、を見る。`HOST=10.97.0.13` で 1 台に絞れる。
 
 結果は `log/<RUN_ID>/<サーバーIP>/` に入る。
+このうち `alp-result.txt` / `ptqd-result.txt` / `rbspy-*.svg` は commit 対象で、`make push`(`git add .`)でそのままチームに共有される。
+生ログ(`*-access.log` / `*-slow.log` / `journal-*.log` / `*.raw.gz`)は 1 回で数十 MB になるので [.gitignore](.gitignore) で除外している。手元にだけ残る。
 
 | ファイル                                                                      | 中身                                                       |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------- |

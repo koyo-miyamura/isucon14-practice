@@ -3,6 +3,14 @@ local
 .*
 !.gitignore
 debian.cnf
-# bench artifacts are large; keep only the placeholder
+# log/ はチーム共有のため集計結果と flamegraph だけ commit する。
+# 生ログ (access.log / slow.log / journal / raw.gz) は 1 回で数十 MB になるので除外する。
 log/*
 !log/.gitkeep
+!log/*/
+log/*/*
+!log/*/*/
+log/*/*/*
+!log/*/*/alp-result.txt
+!log/*/*/ptqd-result.txt
+!log/*/*/rbspy-*.svg
