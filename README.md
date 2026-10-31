@@ -11,22 +11,22 @@ ISUCON14 の練習用リポジトリ。サーバー操作は手元から `make <
 競技ごとに変わる値は [isu.sh](isu.sh) 先頭の `[当日]` と書かれたブロックに集めてある。`grep -n '\[当日\]' isu.sh` で全部出る。
 書き換えたら `make ping` で全サーバーにつながることと、`make help` に出る値が正しいことを確認する。
 
-| 変数                                     | 何を書くか                                                       | 調べ方                                                                         |
-| ---------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `APP_HOSTS` / `NGINX_HOSTS` / `DB_HOSTS` | 役割ごとのサーバー IP。最初は全部 1 台目で、分離したら書き換える | 競技ポータルのサーバー一覧                                                     |
-| `APP_UNITS`                              | アプリの systemd ユニット名(複数あれば全部)                      | サーバーで `systemctl list-units --type=service \| grep -i isu`                |
-| `DB_UNITS`                               | `mysql.service` か `mariadb.service` か                          | 同上で `mysql` / `mariadb` を探す                                              |
-| `RBSPY_DEFAULT_UNITS`                    | `APP_UNITS` のうち puma(Ruby アプリ本体)のもの。`RBSPY=1` のとき rbspy を仕掛ける先 | `systemctl cat <unit>` の `ExecStart` に puma があるもの          |
-| `MYSQL_LOGS`                             | slow log / error log のパス                                      | `conf/mysqld.cnf` に書く `slow_query_log_file` と一致させる                    |
-| `ALP_MATCH`                              | パスパラメータを含む URL を束ねる正規表現(カンマ区切り)          | [webapp/openapi.yaml](webapp/openapi.yaml) や routes の `:id` を含むパスを全部 |
-| `APP_DIR`                                | `bundle install` するディレクトリ(リポジトリからの相対)          | `systemctl cat <unit>` の `WorkingDirectory`                                   |
+| 変数                                     | 何を書くか                                                                          | 調べ方                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `APP_HOSTS` / `NGINX_HOSTS` / `DB_HOSTS` | 役割ごとのサーバー IP。最初は全部 1 台目で、分離したら書き換える                    | 競技ポータルのサーバー一覧                                                     |
+| `APP_UNITS`                              | アプリの systemd ユニット名(複数あれば全部)                                         | サーバーで `systemctl list-units --type=service \| grep -i isu`                |
+| `DB_UNITS`                               | `mysql.service` か `mariadb.service` か                                             | 同上で `mysql` / `mariadb` を探す                                              |
+| `RBSPY_DEFAULT_UNITS`                    | `APP_UNITS` のうち puma(Ruby アプリ本体)のもの。`RBSPY=1` のとき rbspy を仕掛ける先 | `systemctl cat <unit>` の `ExecStart` に puma があるもの                       |
+| `MYSQL_LOGS`                             | slow log / error log のパス                                                         | `conf/mysqld.cnf` に書く `slow_query_log_file` と一致させる                    |
+| `ALP_MATCH`                              | パスパラメータを含む URL を束ねる正規表現(カンマ区切り)                             | [webapp/openapi.yaml](webapp/openapi.yaml) や routes の `:id` を含むパスを全部 |
+| `APP_DIR`                                | `bundle install` するディレクトリ(リポジトリからの相対)                             | `systemctl cat <unit>` の `WorkingDirectory`                                   |
 
 このブロックの外にも 1 箇所だけ `[当日]` がある。`make mysql` が使う `env.sh` の変数名(`ISUCON_DB_*`)は年によって違うので、`make mysql` が失敗したら [isu.sh](isu.sh) の `cmd_mysql` を直す。
 
 それ以外で当日直すもの:
 
 - [Makefile](Makefile): 触らなくてよい(コマンドを足したときだけ)。
-- この README 内の GitHub リポジトリ名(`koyo-miyamura/isucon2026`)と、「初回セットアップ 1.」の git config。
+- この README 内の GitHub リポジトリ名(`koyo-miyamura/Isucon2026`)と、「初回セットアップ 1.」の git config。
 - 計測用の設定(スロークエリログ / LTSV)は毎回手で書く。手順は「初回セットアップ 5.」。
 
 ## 初回セットアップ
@@ -54,15 +54,15 @@ git config --global user.name "koyo"
 git add .
 git status                           # 巨大ファイルや秘密情報が入っていないか目視
 git commit -m "first commit"
-git remote add origin git@github.com:koyo-miyamura/isucon2026
+git remote add origin git@github.com:koyo-miyamura/Isucon2026.git
 git push -u origin main
 ```
 
 ### 2. 手元に clone して運用ファイルを入れる
 
 ```bash
-git clone git@github.com:koyo-miyamura/isucon2026
-cd isucon2026
+git clone git@github.com:koyo-miyamura/Isucon2026.git
+cd Isucon2026
 # このリポジトリから Makefile / isu.sh / README.md をコピーする
 ```
 
@@ -77,7 +77,7 @@ ssh -A isucon@<IP>
 cd ~
 ssh-keyscan github.com >> ~/.ssh/known_hosts
 git init -b main
-git remote add origin git@github.com:koyo-miyamura/isucon2026
+git remote add origin git@github.com:koyo-miyamura/Isucon2026.git
 git fetch origin
 git reset --hard origin/main         # 1 台目の内容で上書きする。gitignore 対象(local/ など)はそのまま残る
 ```
@@ -165,15 +165,15 @@ make prepare-bench RBSPY=1   # 上に加えて rbspy を puma に仕掛ける。
 生ログ(`*-access.log` / `journal-*.log` / `*.raw.gz`)は 1 回で数十 MB になるので [.gitignore](.gitignore) で除外している。手元にだけ残る。
 `mysql-slow.log` はさらに大きい(数百 MB)ので手元にも持ってこない。集計の `ptqd-result.txt` だけ回収し、生ログはサーバーの `/home/isucon/log/<RUN_ID>/` に残る。
 
-| ファイル                                                                      | 中身                                                       |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `alp-result.txt`                                                              | nginx アクセスログの集計(エンドポイント別の件数・合計時間) |
-| `ptqd-result.txt`                                                             | MySQL スロークエリの集計                                   |
-| `rbspy-isuride-ruby.svg`                                                      | Ruby アプリの flamegraph(ブラウザで開く)。`RBSPY=1` の回のみ |
-| `journal-app.log`                                                             | アプリの標準出力・標準エラー(例外のバックトレースはここ)   |
-| `journal-nginx.log` / `journal-mysql.log`                                     | nginx / MySQL の journal                                   |
-| `nginx-access.log` / `nginx-error.log` / `mysql-error.log`                    | 生ログ                                                     |
-| (`mysql-slow.log`)                                                            | サーバーにのみ残る。必要なら `make fetch-logs FETCH_EXCLUDE=` |
+| ファイル                                                   | 中身                                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| `alp-result.txt`                                           | nginx アクセスログの集計(エンドポイント別の件数・合計時間)    |
+| `ptqd-result.txt`                                          | MySQL スロークエリの集計                                      |
+| `rbspy-isuride-ruby.svg`                                   | Ruby アプリの flamegraph(ブラウザで開く)。`RBSPY=1` の回のみ  |
+| `journal-app.log`                                          | アプリの標準出力・標準エラー(例外のバックトレースはここ)      |
+| `journal-nginx.log` / `journal-mysql.log`                  | nginx / MySQL の journal                                      |
+| `nginx-access.log` / `nginx-error.log` / `mysql-error.log` | 生ログ                                                        |
+| (`mysql-slow.log`)                                         | サーバーにのみ残る。必要なら `make fetch-logs FETCH_EXCLUDE=` |
 
 rbspy は既定でオフ。プロファイラは対象プロセスと同じサーバーで動かすしかなく、サンプリングのぶんベンチが遅くなるので、
 alp やスロークエリで「アプリ側が重い」と分かった回だけ `RBSPY=1` で有効にする。
@@ -274,17 +274,17 @@ make status                          # 全サービスが active なこと
 
 [isu.sh](isu.sh) 先頭の設定はすべて `make <コマンド> VAR=value` で一時的に上書きできる。よく使うもの:
 
-| 変数          | 用途                                        | 例                                                                            |
-| ------------- | ------------------------------------------- | ----------------------------------------------------------------------------- |
-| `RBSPY`       | `1` で rbspy を `RBSPY_DEFAULT_UNITS` に仕掛ける(既定はオフ) | `RBSPY=1`                                                    |
-| `RBSPY_UNITS` | rbspy を仕掛けるユニットを直接指定(`RBSPY` より優先) | `RBSPY_UNITS="isuride-ruby.service isuride-matcher.service"`         |
-| `RBSPY_OPTS`  | rbspy のオプション                          | `RBSPY_OPTS="--rate 99 --subprocesses"`(既定は `--rate 50 --subprocesses --nonblocking`) |
-| `SINCE`       | journal の取得開始時刻                      | `SINCE=-10min` / `SINCE="2026-10-30 12:00:00"`                                |
-| `HOST`        | `ssh` / `logs` / `install-memcached` の対象 | `HOST=10.97.0.13`                                                             |
-| `FORCE`       | deploy でサーバー側の変更を破棄             | `FORCE=1`                                                                     |
-| `RUBY_BIN`    | bundle が見つからないときの Ruby の bin     | `RUBY_BIN=/home/isucon/local/ruby/bin`                                        |
-| `RUN_ID`      | after-bench の対象を明示(通常は不要)        | `RUN_ID=20261030_153012`                                                      |
-| `FETCH_EXCLUDE` | fetch-logs で持ってこないファイル(既定 `mysql-slow.log`) | `FETCH_EXCLUDE=` (全部持ってくる) / `FETCH_EXCLUDE="mysql-slow.log nginx-access.log"` |
+| 変数            | 用途                                                         | 例                                                                                       |
+| --------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `RBSPY`         | `1` で rbspy を `RBSPY_DEFAULT_UNITS` に仕掛ける(既定はオフ) | `RBSPY=1`                                                                                |
+| `RBSPY_UNITS`   | rbspy を仕掛けるユニットを直接指定(`RBSPY` より優先)         | `RBSPY_UNITS="isuride-ruby.service isuride-matcher.service"`                             |
+| `RBSPY_OPTS`    | rbspy のオプション                                           | `RBSPY_OPTS="--rate 99 --subprocesses"`(既定は `--rate 50 --subprocesses --nonblocking`) |
+| `SINCE`         | journal の取得開始時刻                                       | `SINCE=-10min` / `SINCE="2026-10-30 12:00:00"`                                           |
+| `HOST`          | `ssh` / `logs` / `install-memcached` の対象                  | `HOST=10.97.0.13`                                                                        |
+| `FORCE`         | deploy でサーバー側の変更を破棄                              | `FORCE=1`                                                                                |
+| `RUBY_BIN`      | bundle が見つからないときの Ruby の bin                      | `RUBY_BIN=/home/isucon/local/ruby/bin`                                                   |
+| `RUN_ID`        | after-bench の対象を明示(通常は不要)                         | `RUN_ID=20261030_153012`                                                                 |
+| `FETCH_EXCLUDE` | fetch-logs で持ってこないファイル(既定 `mysql-slow.log`)     | `FETCH_EXCLUDE=` (全部持ってくる) / `FETCH_EXCLUDE="mysql-slow.log nginx-access.log"`    |
 
 ## コマンドを追加するとき
 
